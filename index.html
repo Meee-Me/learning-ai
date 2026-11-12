@@ -2,289 +2,434 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Max, an AI tutor that teaches step by step, quizzes you, or gives hints only, at your level.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="description" content="Max, a free AI tutor that runs on your device. Teaches step by step, quizzes you, and reads your files.">
 <title>Max Tutor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=JetBrains+Mono:wght@400&display=swap">
 <style>
-/* Layout: one-screen study desk — header with Max, a settings strip, chat column, composer pinned at bottom */
+/* Layout: chat app — collapsible chat-history sidebar, centered conversation column, composer docked at the bottom */
 :root {
-  --bg: #f3f6fb;
+  --bg: #f6f8fc;
+  --side: #eceff6;
   --surface: #ffffff;
   --ink: #18223a;
   --muted: #5d6a85;
-  --line: #dbe2ef;
+  --line: #dbe1ec;
+  --hover: #e2e7f1;
   --accent: #2f6bff;
   --accent-ink: #ffffff;
-  --max-bubble: #e8efff;
-  --you-bubble: #18223a;
-  --you-ink: #f3f6fb;
+  --you: #e6ecf8;
   --chalk: #ffcf4a;
+  --danger: #c2413b;
   --font-display: "Fredoka", "Nunito Sans", system-ui, sans-serif;
-  --font-body: "Nunito Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --shadow: 0 1px 2px rgb(20 30 60 / .06), 0 6px 24px rgb(20 30 60 / .07);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1424; --surface: #171e33; --ink: #e8edf8; --muted: #9aa6c2; --line: #2a3452;
-    --accent: #6f98ff; --accent-ink: #0f1424; --max-bubble: #1e2a4a; --you-bubble: #e8edf8; --you-ink: #0f1424;
-    --chalk: #ffd666; color-scheme: dark;
+    --bg: #12161f; --side: #0d1017; --surface: #1b2130; --ink: #e8ecf5; --muted: #98a3bb; --line: #2a3243;
+    --hover: #222a3b; --accent: #6f98ff; --accent-ink: #0d1017; --you: #222b3e; --chalk: #ffd666; --danger: #ff7b72;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 6px 24px rgb(0 0 0 / .25); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0f1424; --surface: #171e33; --ink: #e8edf8; --muted: #9aa6c2; --line: #2a3452;
-  --accent: #6f98ff; --accent-ink: #0f1424; --max-bubble: #1e2a4a; --you-bubble: #e8edf8; --you-ink: #0f1424;
-  --chalk: #ffd666; color-scheme: dark;
+  --bg: #12161f; --side: #0d1017; --surface: #1b2130; --ink: #e8ecf5; --muted: #98a3bb; --line: #2a3243;
+  --hover: #222a3b; --accent: #6f98ff; --accent-ink: #0d1017; --you: #222b3e; --chalk: #ffd666; --danger: #ff7b72;
+  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 6px 24px rgb(0 0 0 / .25); color-scheme: dark;
 }
-html, body { height: 100%; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
-.app { height: 100%; display: flex; flex-direction: column; max-width: 820px; margin: 0 auto;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px; gap: 12px; box-sizing: border-box; }
-header { display: flex; align-items: center; gap: 12px; }
-.avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
-  display: grid; place-items: center; font-family: var(--font-display); font-weight: 600; font-size: 22px; flex: none; position: relative; }
-.avatar::after { content: ""; position: absolute; right: 1px; bottom: 1px; width: 11px; height: 11px; border-radius: 50%; background: var(--chalk); border: 2px solid var(--bg); }
-h1 { font-family: var(--font-display); font-weight: 600; font-size: 24px; margin: 0; line-height: 1.1; }
-.tag { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
-header .spacer { flex: 1; }
-.btn-ghost { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 12px; font: 600 13px var(--font-body); cursor: pointer; }
-.btn-ghost:hover { color: var(--ink); border-color: var(--muted); }
-
-.settings { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-.field { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-.field input, .field select { font: 600 13px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
-.field input { width: 140px; }
-.modes { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
-.modes button { border: 0; background: none; color: var(--muted); font: 600 13px var(--font-body); padding: 4px 11px; border-radius: 999px; cursor: pointer; }
-.modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
-
-.chat { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 8px; }
-.msg { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
-.msg .mini { width: 28px; height: 28px; font-size: 14px; }
-.msg .mini::after { display: none; }
-.bubble { background: var(--max-bubble); border-radius: 4px 16px 16px 16px; padding: 10px 14px; max-width: 85%; min-width: 0; overflow-wrap: anywhere; }
-.msg.you { justify-content: flex-end; }
-.msg.you .bubble { background: var(--you-bubble); color: var(--you-ink); border-radius: 16px 4px 16px 16px; white-space: pre-wrap; }
-.bubble p { margin: 0 0 8px; } .bubble p:last-child { margin-bottom: 0; }
-.bubble ul, .bubble ol { margin: 4px 0 8px; padding-left: 20px; }
-.bubble code { font-family: var(--font-mono); font-size: 13px; background: color-mix(in srgb, var(--surface) 70%, transparent); padding: 1px 5px; border-radius: 4px; }
-.bubble pre { font-family: var(--font-mono); font-size: 13px; background: var(--surface); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 6px 0; }
-.bubble pre code { background: none; padding: 0; }
-.bubble h3 { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin: 6px 0 4px; }
-.thinking { color: var(--muted); font-style: italic; }
-.example-note { align-self: center; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips button { background: var(--surface); border: 1px dashed var(--line); color: var(--ink); border-radius: 999px; padding: 5px 11px; font: 13px var(--font-body); cursor: pointer; }
-.chips button:hover { border-color: var(--accent); color: var(--accent); }
-
-form.composer { display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 8px; }
-form.composer textarea { flex: 1; min-width: 0; border: 0; resize: none; background: none; color: var(--ink); font: 15px var(--font-body); line-height: 1.45; padding: 6px 6px; max-height: 140px; outline: none; }
-.send { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 9px 16px; font: 600 14px var(--font-body); cursor: pointer; }
-.send:disabled { opacity: .5; cursor: default; }
-button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.status { font-size: 12px; color: var(--muted); min-height: 1em; margin: -4px 4px 0; }
-@media (max-width: 480px) { .field input { width: 110px; } .tag { display: none; } }
-.loadbar { display: flex; flex-direction: column; gap: 4px; }
-.loadbar p { margin: 0; font-size: 12px; color: var(--muted); }
-.loadtrack { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
-.loadfill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
-[hidden] { display: none !important; }
 * { box-sizing: border-box; }
-body { margin: 0; }
-:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.6; overflow: hidden; }
+button { font: inherit; color: inherit; }
+button:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg { width: 18px; height: 18px; flex: none; }
+
+.shell { display: flex; height: 100%; padding-top: env(safe-area-inset-top, 0px); }
+
+/* Sidebar */
+aside { width: 272px; flex: none; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 12px 10px; padding-left: max(10px, env(safe-area-inset-left, 0px)); gap: 6px; transition: margin .2s, transform .2s; }
+.shell.collapsed aside { margin-left: -272px; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 10px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 600; font-size: 16px; flex: none; position: relative; }
+.avatar::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--chalk); border: 2px solid var(--side); }
+.brand b { font-family: var(--font-display); font-weight: 600; font-size: 20px; flex: 1; }
+.iconbtn { background: none; border: 0; border-radius: 8px; padding: 7px; cursor: pointer; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
+.iconbtn:hover { background: var(--hover); color: var(--ink); }
+.newchat { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; }
+.newchat:hover { border-color: var(--accent); color: var(--accent); }
+.side-label { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 12px 8px 2px; }
+.history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+.hitem { display: flex; align-items: center; border-radius: 8px; }
+.hitem:hover, .hitem.active { background: var(--hover); }
+.hitem button.open { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 7px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.hitem .del { opacity: 0; padding: 5px; }
+.hitem:hover .del, .hitem.active .del, .hitem .del:focus-visible { opacity: 1; }
+.hempty { color: var(--muted); font-size: 13.5px; padding: 6px 8px; }
+.side-foot { border-top: 1px solid var(--line); padding: 10px 6px 4px; font-size: 12.5px; color: var(--muted); padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)); }
+
+/* Main */
+main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+.topbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; padding-right: max(12px, env(safe-area-inset-right, 0px)); min-height: 52px; }
+.topbar .title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 14px; }
+.shell:not(.collapsed) .topbar .open-side { display: none; }
+.settings-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.settings-btn:hover { border-color: var(--accent); }
+.popover { position: absolute; top: 52px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 20; width: min(320px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.popover label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.popover select, .popover input { font: 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+.popover .hint { font-size: 12px; color: var(--muted); margin: 0; }
+
+.scroller { flex: 1; overflow-y: auto; min-height: 0; }
+.column { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.thread { display: flex; flex-direction: column; gap: 22px; padding-block: 12px 24px; }
+
+.welcome { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding-top: 8vh; }
+.welcome .avatar { width: 56px; height: 56px; font-size: 28px; }
+.welcome .avatar::after { width: 14px; height: 14px; border-color: var(--bg); }
+.welcome h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 5vw, 34px); margin: 6px 0 0; text-wrap: balance; line-height: 1.2; }
+.welcome p { color: var(--muted); margin: 0; max-width: 46ch; }
+.modes { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin-top: 8px; }
+.modes button { border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 13.5px; padding: 5px 13px; border-radius: 999px; cursor: pointer; }
+.modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.starters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; margin-top: 14px; }
+.starters button { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-size: 14px; }
+.starters button span { display: block; color: var(--muted); font-size: 12.5px; }
+.starters button:hover { border-color: var(--accent); }
+@media (max-width: 520px) { .starters { grid-template-columns: 1fr; } }
+
+.turn-user { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.turn-user .bubble { background: var(--you); border-radius: 18px 18px 4px 18px; padding: 9px 15px; max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.turn-max { display: flex; gap: 12px; align-items: flex-start; }
+.turn-max .avatar { width: 28px; height: 28px; font-size: 14px; margin-top: 2px; }
+.turn-max .avatar::after { display: none; }
+.turn-max .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.body p { margin: 0 0 10px; } .body p:last-child { margin-bottom: 0; }
+.body ul, .body ol { margin: 4px 0 10px; padding-left: 22px; }
+.body li { margin: 2px 0; }
+.body h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 12px 0 4px; }
+.body code { font-family: var(--font-mono); font-size: 13px; background: var(--hover); padding: 1px 5px; border-radius: 5px; }
+.body pre { font-family: var(--font-mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); padding: 12px; border-radius: 10px; overflow-x: auto; margin: 8px 0; }
+.body pre code { background: none; padding: 0; }
+.thinking { color: var(--muted); font-style: italic; }
+.thinking::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite ease-in-out; vertical-align: middle; }
+@keyframes pulse { 50% { opacity: .2; } }
+.actions { display: flex; gap: 2px; margin-top: 4px; margin-left: -6px; }
+.actions .iconbtn { padding: 5px; }
+.actions svg { width: 15px; height: 15px; }
+
+.files { display: flex; flex-wrap: wrap; gap: 6px; }
+.turn-user .files { justify-content: flex-end; max-width: 85%; }
+.chip { display: inline-flex; align-items: center; gap: 8px; max-width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px 6px 6px; font-size: 13px; }
+.chip .ficon { width: 30px; height: 30px; border-radius: 7px; background: var(--hover); display: grid; place-items: center; color: var(--accent); flex: none; font: 600 9.5px var(--font-mono); text-transform: uppercase; overflow: hidden; }
+.chip .ficon img { width: 100%; height: 100%; object-fit: cover; }
+.chip .meta { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.chip .meta b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip .meta span { color: var(--muted); font-size: 11.5px; }
+.chip .meta span.err { color: var(--danger); }
+.chip .x { padding: 3px; }
+.chip .x svg { width: 14px; height: 14px; }
+
+/* Composer */
+.dock { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+.loadbar { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+.loadbar p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.loadtrack { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.loadfill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.composer { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 10px 10px 8px 14px; display: flex; flex-direction: column; gap: 8px; transition: border-color .15s; }
+.composer:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.composer.drag { border-color: var(--accent); border-style: dashed; }
+.composer textarea { border: 0; resize: none; background: none; color: var(--ink); font: 15.5px/1.5 var(--font-body); padding: 4px 0; max-height: 200px; outline: none; width: 100%; }
+.composer .row { display: flex; align-items: center; gap: 6px; }
+.composer .row .grow { flex: 1; }
+.mode-tag { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.send { width: 36px; height: 36px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: pointer; }
+.send:disabled { opacity: .35; cursor: default; }
+.foot { text-align: center; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.status { text-align: center; font-size: 12.5px; color: var(--danger); margin: 6px 0 0; min-height: 0; }
+.dropveil { position: absolute; inset: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 85%, transparent); display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 16px; margin: 8px; pointer-events: none; font-family: var(--font-display); font-size: 22px; color: var(--accent); }
+
+/* Phone: sidebar slides over */
+.scrim { display: none; }
+@media (max-width: 820px) {
+  aside { position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; transform: translateX(-100%); margin-left: 0 !important; padding-top: max(12px, env(safe-area-inset-top, 0px)); box-shadow: var(--shadow); }
+  .shell.side-open aside { transform: none; }
+  .shell.side-open .scrim { display: block; position: fixed; inset: 0; z-index: 35; background: rgb(0 0 0 / .35); }
+  .topbar .open-side { display: inline-flex !important; }
+  aside .close-side { display: inline-flex; }
+}
+@media (min-width: 821px) { aside .close-side { display: inline-flex; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-side" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.5 12 20a5.5 5.5 0 0 1-7.8-7.8l8.8-8.7a3.7 3.7 0 0 1 5.2 5.2l-8.7 8.8a1.8 1.8 0 0 1-2.6-2.6l8-8"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></symbol>
+  <symbol id="i-tune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+</svg>
 
-<div class="app">
-  <header>
-    <div class="avatar" aria-hidden="true">M</div>
-    <div>
-      <h1>Max</h1>
-      <p class="tag">Your patient tutor. Runs free, right on your device.</p>
+<div class="shell" id="shell">
+  <aside aria-label="Chats">
+    <div class="brand">
+      <div class="avatar" aria-hidden="true">M</div>
+      <b>Max</b>
+      <button class="iconbtn close-side" id="closeSide" type="button" aria-label="Hide sidebar"><svg><use href="#i-side"/></svg></button>
     </div>
-    <div class="spacer"></div>
-    <button class="btn-ghost" id="newBtn" type="button">New lesson</button>
-  </header>
+    <button class="newchat" id="newChat" type="button"><svg><use href="#i-plus"/></svg>New lesson</button>
+    <div class="side-label">Recent</div>
+    <div class="history" id="history"></div>
+    <div class="side-foot">Max runs on your device. Chats are saved only in this browser.</div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
 
-  <div class="settings">
-    <label class="field">Subject <input id="subject" type="text" placeholder="e.g. fractions" value=""></label>
-    <label class="field">Level
-      <select id="level">
-        <option>Kid (8–11)</option>
-        <option>Middle school</option>
-        <option selected>High school</option>
-        <option>College</option>
-        <option>Adult beginner</option>
-      </select>
-    </label>
-    <label class="field">Brain
-      <select id="model">
-        <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Fast (0.9 GB)</option>
-        <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC" selected>Smarter (1.6 GB)</option>
-      </select>
-    </label>
-    <div class="modes" role="group" aria-label="How Max helps">
-      <button type="button" data-mode="teach" aria-pressed="true">Teach me</button>
-      <button type="button" data-mode="quiz" aria-pressed="false">Quiz me</button>
-      <button type="button" data-mode="hint" aria-pressed="false">Hints only</button>
+  <main id="main">
+    <div class="topbar">
+      <button class="iconbtn open-side" id="openSide" type="button" aria-label="Show chats"><svg><use href="#i-side"/></svg></button>
+      <div class="title" id="title"></div>
+      <button class="settings-btn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="popover"><svg><use href="#i-tune"/></svg><span id="levelTag">High school</span></button>
     </div>
-  </div>
+    <div class="popover" id="popover" hidden>
+      <label>Level
+        <select id="level">
+          <option>Kid (8–11)</option>
+          <option>Middle school</option>
+          <option selected>High school</option>
+          <option>College</option>
+          <option>Adult beginner</option>
+        </select>
+      </label>
+      <label>Subject (optional)
+        <input id="subject" type="text" placeholder="e.g. fractions, biology, Python">
+      </label>
+      <label>Brain
+        <select id="model">
+          <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Fast · Llama 3.2 1B (0.9 GB)</option>
+          <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC" selected>Smarter · Qwen 2.5 1.5B (1.6 GB)</option>
+          <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Smartest · Llama 3.2 3B (2.3 GB, computers)</option>
+        </select>
+      </label>
+      <p class="hint">The brain downloads once, then works offline.</p>
+    </div>
 
-  <div class="chat" id="chat" aria-live="polite"></div>
+    <div class="scroller" id="scroller">
+      <div class="column">
+        <section class="welcome" id="welcome">
+          <div class="avatar" aria-hidden="true">M</div>
+          <h1 id="greeting">What do you want to learn today?</h1>
+          <p>Ask a question, or attach your notes, homework or a worksheet. Max will explain it step by step.</p>
+          <div class="modes" role="group" aria-label="How Max helps">
+            <button type="button" data-mode="teach" aria-pressed="true">Teach me</button>
+            <button type="button" data-mode="quiz" aria-pressed="false">Quiz me</button>
+            <button type="button" data-mode="hint" aria-pressed="false">Hints only</button>
+          </div>
+          <div class="starters" id="starters">
+            <button type="button" data-mode="teach">Explain photosynthesis<span>Simply, with an example</span></button>
+            <button type="button" data-mode="hint">Help me solve 3x + 5 = 20<span>Hints only, no answer</span></button>
+            <button type="button" data-mode="quiz">Quiz me on the planets<span>One question at a time</span></button>
+            <button type="button" data-mode="teach">What is a variable in coding?<span>For a beginner</span></button>
+          </div>
+        </section>
+        <div class="thread" id="thread"></div>
+      </div>
+    </div>
 
-  <div class="chips" id="chips">
-    <button type="button">Explain photosynthesis simply</button>
-    <button type="button">Help me solve 3x + 5 = 20</button>
-    <button type="button">Quiz me on the planets</button>
-    <button type="button">What is a variable in coding?</button>
-  </div>
-
-  <div class="loadbar" id="loadbar" hidden>
-    <div class="loadtrack"><div class="loadfill" id="loadfill"></div></div>
-    <p id="loadtext">Downloading Max's brain…</p>
-  </div>
-
-  <form class="composer" id="composer">
-    <textarea id="input" rows="1" placeholder="Ask Max a question…" aria-label="Your message"></textarea>
-    <button class="send" id="sendBtn" type="submit">Send</button>
-  </form>
-  <p class="status" id="status"></p>
+    <div class="dock">
+      <div class="column">
+        <div class="loadbar" id="loadbar" hidden>
+          <div class="loadtrack"><div class="loadfill" id="loadfill"></div></div>
+          <p id="loadtext">Downloading Max's brain…</p>
+        </div>
+        <form class="composer" id="composer">
+          <div class="files" id="pending" hidden></div>
+          <textarea id="input" rows="1" placeholder="Ask Max anything…" aria-label="Message Max"></textarea>
+          <div class="row">
+            <button class="iconbtn" id="attach" type="button" aria-label="Attach files" title="Attach files (PDF, Word, text, code, images)"><svg><use href="#i-clip"/></svg></button>
+            <input id="fileInput" type="file" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.rb,.go,.rs,.php,.sql,.xml,.yaml,.yml,.tex,.rtf,image/*,text/*">
+            <span class="mode-tag" id="modeTag">Teach me</span>
+            <span class="grow"></span>
+            <button class="send" id="send" type="submit" aria-label="Send" disabled><svg><use href="#i-up"/></svg></button>
+          </div>
+        </form>
+        <p class="status" id="status" hidden></p>
+        <p class="foot">Max is a small AI running on your device and can make mistakes. Check important answers.</p>
+      </div>
+    </div>
+    <div class="dropveil" id="dropveil" hidden>Drop files for Max to read</div>
+  </main>
 </div>
 
 <script type="module">
 const WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm";
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const MAMMOTH = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
+const TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+const FILE_CHAR_LIMIT = 7000;   // small models have small memories; keep files short
+const MAX_FILE_MB = 25;
 
 const MODES = {
-  teach: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding.",
-  quiz: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3).",
-  hint: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work.",
+  teach: { label: "Teach me", rule: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding." },
+  quiz:  { label: "Quiz me", rule: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3)." },
+  hint:  { label: "Hints only", rule: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work." },
 };
-const systemPrompt = (subject, level, mode) => `You are Max, a warm, patient, encouraging tutor. Student level: ${level}.${subject ? " Subject: " + subject + "." : ""}
-Mode: ${MODES[mode]}
-Rules: keep replies short (under 120 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Write math in plain text like 3x + 5 = 20. If you are not sure about a fact, say so.`;
+const systemPrompt = (c) => `You are Max, a warm, patient, encouraging tutor. Student level: ${c.level}.${c.subject ? " Subject: " + c.subject + "." : ""}
+Mode: ${MODES[c.mode].rule}
+Rules: keep replies short (under 150 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Write math in plain text like 3x + 5 = 20. If the student attached a file, its text is included in their message between <file> tags: use it to teach them. If you are not sure about a fact, say so.`;
 
-let engine = null, loading = null, loadedModel = null;
 const $ = (id) => document.getElementById(id);
-const chat = $("chat"), input = $("input"), sendBtn = $("sendBtn"), statusEl = $("status"), chips = $("chips");
-let mode = "teach";
-let turns = [];
-let ctl = null;
-let busy = false;
+const shell = $("shell"), thread = $("thread"), welcome = $("welcome"), input = $("input"), sendBtn = $("send");
+const scroller = $("scroller"), pendingEl = $("pending"), statusEl = $("status");
 
-function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-function inline(s) {
-  return s.replace(/`([^`]+)`/g, "<code>$1</code>")
-          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-          .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+/* ---------- storage ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+let chats = store.get("max.chats", []);
+let prefs = store.get("max.prefs", { level: "High school", subject: "", model: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", mode: "teach", collapsed: false });
+let current = null;      // the open chat object
+let pending = [];        // files waiting to send: {id,name,size,kind,text,thumb,status}
+let busy = false, ctl = null;
+
+function saveChats() {
+  chats = chats.filter((c) => c.messages.length).slice(0, 50);
+  if (!store.set("max.chats", chats)) {
+    // too big: drop file text from older chats and try again
+    chats.forEach((c, i) => { if (i > 2) c.messages.forEach((m) => (m.files || []).forEach((f) => { f.text = ""; f.thumb = ""; })); });
+    store.set("max.chats", chats);
+  }
 }
+const savePrefs = () => store.set("max.prefs", prefs);
+
+/* ---------- markdown ---------- */
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const inline = (s) => s.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
 function md(src) {
-  const parts = esc(src).split(/```/);
   let html = "";
-  parts.forEach((part, i) => {
-    if (i % 2) { html += "<pre><code>" + part.replace(/^[a-z]*\n/, "") + "</code></pre>"; return; }
-    const lines = part.split("\n");
+  esc(src).split(/```/).forEach((part, i) => {
+    if (i % 2) { html += "<pre><code>" + part.replace(/^[\w+-]*\n/, "") + "</code></pre>"; return; }
     let list = null, para = [];
-    const flushP = () => { if (para.length) { html += "<p>" + inline(para.join("<br>")) + "</p>"; para = []; } };
-    const flushL = () => { if (list) { html += `</${list}>`; list = null; } };
-    for (const raw of lines) {
-      const line = raw.trimEnd();
-      let m;
-      if (!line.trim()) { flushP(); flushL(); continue; }
-      if ((m = line.match(/^#{1,4}\s+(.*)/))) { flushP(); flushL(); html += "<h3>" + inline(m[1]) + "</h3>"; continue; }
-      if ((m = line.match(/^\s*[-*•]\s+(.*)/))) { flushP(); if (list !== "ul") { flushL(); html += "<ul>"; list = "ul"; } html += "<li>" + inline(m[1]) + "</li>"; continue; }
-      if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { flushP(); if (list !== "ol") { flushL(); html += "<ol>"; list = "ol"; } html += "<li>" + inline(m[1]) + "</li>"; continue; }
-      flushL(); para.push(line);
+    const fp = () => { if (para.length) { html += "<p>" + inline(para.join("<br>")) + "</p>"; para = []; } };
+    const fl = () => { if (list) { html += `</${list}>`; list = null; } };
+    for (const raw of part.split("\n")) {
+      const line = raw.trimEnd(); let m;
+      if (!line.trim()) { fp(); fl(); continue; }
+      if ((m = line.match(/^#{1,4}\s+(.*)/))) { fp(); fl(); html += "<h3>" + inline(m[1]) + "</h3>"; continue; }
+      if ((m = line.match(/^\s*[-*•]\s+(.*)/))) { fp(); if (list !== "ul") { fl(); html += "<ul>"; list = "ul"; } html += "<li>" + inline(m[1]) + "</li>"; continue; }
+      if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { fp(); if (list !== "ol") { fl(); html += "<ol>"; list = "ol"; } html += "<li>" + inline(m[1]) + "</li>"; continue; }
+      fl(); para.push(line);
     }
-    flushP(); flushL();
+    fp(); fl();
   });
   return html;
 }
 
-function addMsg(role, text) {
-  const row = document.createElement("div");
-  row.className = "msg " + (role === "user" ? "you" : "max");
-  const b = document.createElement("div");
-  b.className = "bubble";
-  if (role === "user") b.textContent = text; else b.innerHTML = md(text);
-  if (role !== "user") {
-    const a = document.createElement("div"); a.className = "avatar mini"; a.textContent = "M"; a.setAttribute("aria-hidden", "true");
-    row.appendChild(a);
-  }
-  row.appendChild(b);
-  chat.appendChild(row);
-  chat.scrollTop = chat.scrollHeight;
-  return b;
+/* ---------- files ---------- */
+const loaded = {};
+function loadScript(src) {
+  return loaded[src] ||= new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => { delete loaded[src]; rej(new Error("couldn't download the file reader")); }; document.head.appendChild(s); });
 }
-
-function welcome() {
-  chat.innerHTML = "";
-  addMsg("assistant", "Hi, I'm **Max**! 👋 I'm here to help you *understand* things, not just memorize them.\n\nPick a subject and level above, choose how you want help, and ask me anything. What would you like to learn today?");
-  const note = document.createElement("div"); note.className = "example-note"; note.textContent = "Example of how Max teaches";
-  chat.appendChild(note);
-  addMsg("user", "Why is 1/2 bigger than 1/3?");
-  addMsg("assistant", "Great question! Picture one pizza. 🍕\n\n- Cut it into **2** pieces: each slice is **1/2**.\n- Cut the same pizza into **3** pieces: each slice is **1/3**.\n\nMore cuts means **smaller slices**. So 1/2 is bigger.\n\n**Your turn:** which is bigger, 1/4 or 1/5? Tell me why.");
-  chips.hidden = false;
+const ext = (name) => (name.split(".").pop() || "").toLowerCase();
+const fmtSize = (n) => n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB";
+function kindOf(file) {
+  const e = ext(file.name);
+  if (file.type === "application/pdf" || e === "pdf") return "pdf";
+  if (e === "docx") return "docx";
+  if (file.type.startsWith("image/")) return "image";
+  return "text";
 }
-
-function setStatus(t) { statusEl.textContent = t || ""; }
-function setBusy(b) { busy = b; sendBtn.textContent = b ? "Stop" : "Send"; sendBtn.disabled = false; }
-
-
-async function send(text) {
-  text = text.trim();
-  if (!text || busy) return;
-  if (turns.length === 0) chat.querySelectorAll(".example-note, .msg").forEach((el, i) => { if (i > 0) el.remove(); });
-  chips.hidden = true;
-  addMsg("user", text);
-  turns.push({ role: "user", content: text });
-  input.value = ""; autosize();
-  const bubble = addMsg("assistant", "");
-  bubble.innerHTML = '<span class="thinking">Max is thinking…</span>';
-  ctl = new AbortController();
-  setBusy(true); setStatus("");
-  let answer = "";
-  try {
-    const eng = await loadEngine(bubble);
-    bubble.innerHTML = '<span class="thinking">Max is thinking…</span>';
-    const stream = await eng.chat.completions.create({
-      stream: true, temperature: 0.6, max_tokens: 600,
-      messages: [{ role: "system", content: systemPrompt($("subject").value.trim(), $("level").value, mode) }, ...turns.slice(-12)],
-    });
-    for await (const chunk of stream) {
-      if (ctl.signal.aborted) { eng.interruptGenerate(); break; }
-      answer += chunk.choices[0]?.delta?.content || "";
-      bubble.innerHTML = md(answer);
-      chat.scrollTop = chat.scrollHeight;
+async function extract(file, kind, onNote) {
+  if (kind === "pdf") {
+    await loadScript(PDFJS);
+    const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+    const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let out = "";
+    for (let p = 1; p <= pdf.numPages && out.length < FILE_CHAR_LIMIT * 1.5; p++) {
+      onNote(`Reading page ${p} of ${pdf.numPages}…`);
+      const tc = await (await pdf.getPage(p)).getTextContent();
+      out += `\n[Page ${p}]\n` + tc.items.map((it) => it.str + (it.hasEOL ? "\n" : " ")).join("");
     }
-    if (!answer.trim()) throw new Error("Max didn't say anything. Try sending again.");
-    bubble.innerHTML = md(answer);
-    turns.push({ role: "assistant", content: answer });
-  } catch (e) {
-    if (answer.trim()) { bubble.innerHTML = md(answer); turns.push({ role: "assistant", content: answer }); }
-    else { bubble.closest(".msg").remove(); turns.pop(); }
-    if (e.name !== "AbortError") setStatus(e.message || "Max couldn't answer that time. Try again.");
-  } finally {
-    setBusy(false); ctl = null; input.focus();
+    if (!out.replace(/\[Page \d+\]/g, "").trim()) throw new Error("this PDF has no text (it may be a scan). Try a photo of the page instead");
+    return out;
+  }
+  if (kind === "docx") {
+    await loadScript(MAMMOTH);
+    return (await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })).value;
+  }
+  if (kind === "image") {
+    onNote("Reading the text in the picture…");
+    await loadScript(TESSERACT);
+    const r = await window.Tesseract.recognize(file, "eng", { logger: (m) => { if (m.status === "recognizing text") onNote(`Reading the picture… ${Math.round(m.progress * 100)}%`); } });
+    const t = (r.data.text || "").trim();
+    if (!t) throw new Error("no readable text found in this picture");
+    return t;
+  }
+  const t = await file.text();
+  if (/\u0000/.test(t.slice(0, 2000))) throw new Error("Max can't read this kind of file");
+  return t;
+}
+function thumbOf(file) {
+  return new Promise((res) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const c = document.createElement("canvas"); const s = 64 / Math.max(img.width, img.height); c.width = img.width * s; c.height = img.height * s; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", .7)); };
+    img.onerror = () => { URL.revokeObjectURL(url); res(""); };
+    img.src = url;
+  });
+}
+async function addFiles(list) {
+  for (const file of list) {
+    const f = { id: Math.random().toString(36).slice(2), name: file.name || "pasted-image.png", size: file.size, kind: kindOf(file), text: "", thumb: "", status: "Reading…", error: false };
+    if (file.size > MAX_FILE_MB * 1048576) { f.status = `Too big (max ${MAX_FILE_MB} MB)`; f.error = true; }
+    pending.push(f); renderPending(); updateSend();
+    if (f.error) continue;
+    if (f.kind === "image") { f.thumb = await thumbOf(file); renderPending(); }
+    try {
+      let text = (await extract(file, f.kind, (n) => { f.status = n; renderPending(); })).replace(/\n{3,}/g, "\n\n").trim();
+      f.cut = text.length > FILE_CHAR_LIMIT;
+      f.text = text.slice(0, FILE_CHAR_LIMIT);
+      f.status = f.cut ? `${fmtSize(f.size)} · only the first part is read` : fmtSize(f.size);
+    } catch (e) { f.error = true; f.status = "Couldn't read: " + (e.message || e); }
+    renderPending(); updateSend();
   }
 }
+function chipHTML(f, removable) {
+  const icon = f.thumb ? `<img src="${f.thumb}" alt="">` : esc(ext(f.name).slice(0, 4) || "file");
+  return `<div class="chip" data-id="${f.id}"><div class="ficon">${icon}</div><div class="meta"><b title="${esc(f.name)}">${esc(f.name)}</b><span class="${f.error ? "err" : ""}">${esc(f.status || fmtSize(f.size))}</span></div>${removable ? `<button class="iconbtn x" type="button" aria-label="Remove ${esc(f.name)}"><svg><use href="#i-x"/></svg></button>` : ""}</div>`;
+}
+function renderPending() {
+  pendingEl.hidden = !pending.length;
+  pendingEl.innerHTML = pending.map((f) => chipHTML(f, true)).join("");
+}
+pendingEl.addEventListener("click", (e) => {
+  const x = e.target.closest(".x"); if (!x) return;
+  const id = x.closest(".chip").dataset.id; pending = pending.filter((f) => f.id !== id); renderPending(); updateSend();
+});
+$("attach").onclick = () => $("fileInput").click();
+$("fileInput").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
+input.addEventListener("paste", (e) => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } });
+let dragDepth = 0;
+const main = $("main"), veil = $("dropveil");
+main.addEventListener("dragenter", (e) => { if ([...e.dataTransfer.types].includes("Files")) { dragDepth++; veil.hidden = false; e.preventDefault(); } });
+main.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
+main.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; veil.hidden = true; } });
+main.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; veil.hidden = true; if (e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
 
-function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; }
-input.addEventListener("input", autosize);
-input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input.value); } });
-$("composer").addEventListener("submit", (e) => { e.preventDefault(); if (busy) ctl?.abort(); else send(input.value); });
-chips.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return;
-  if (/^Quiz me/.test(b.textContent)) setMode("quiz"); send(b.textContent); });
-function setMode(m) { mode = m; document.querySelectorAll(".modes button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.mode === m))); }
-document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
-$("newBtn").addEventListener("click", () => { ctl?.abort(); turns = []; welcome(); setStatus(""); input.focus(); });
-
-async function loadEngine(bubble) {
-  const model = $("model").value;
-  if (engine && loadedModel === model) return engine;
-  if (!navigator.gpu) throw new Error("This browser can't run Max's AI. Use a recent Chrome, Edge or Safari (iPhone: iOS 26 or newer) with WebGPU.");
+/* ---------- AI engine ---------- */
+let engine = null, loading = null, loadedModel = null;
+function loadEngine(note) {
+  const model = prefs.model;
+  if (engine && loadedModel === model) return Promise.resolve(engine);
+  if (!navigator.gpu) return Promise.reject(new Error("This browser can't run Max's AI. Use a recent Chrome or Edge, or Safari on iOS/macOS 26 or newer."));
   if (!loading || loadedModel !== model) {
     loadedModel = model;
     const show = (r) => {
@@ -292,16 +437,170 @@ async function loadEngine(bubble) {
       $("loadbar").hidden = false; $("loadfill").style.width = pct + "%";
       $("loadtext").textContent = pct < 100 ? `Downloading Max's brain… ${pct}% (only the first time)` : "Waking Max up…";
     };
-    loading = (engine ? engine.reload(model).then(() => engine) : import(WEBLLM_URL).then((webllm) => webllm.CreateMLCEngine(model, { initProgressCallback: show })))
-      .then((e) => { engine = e; $("loadbar").hidden = true; setStatus("Max is running on your device. Your chats never leave it."); return e; })
-      .catch((err) => { loading = null; loadedModel = null; $("loadbar").hidden = true; throw new Error("Max couldn't load: " + (err.message || err) + ". Close other tabs and try again, or pick the Fast brain."); });
+    loading = (engine ? engine.reload(model).then(() => engine) : import(WEBLLM_URL).then((w) => w.CreateMLCEngine(model, { initProgressCallback: show })))
+      .then((e) => { engine = e; $("loadbar").hidden = true; return e; })
+      .catch((err) => { loading = null; loadedModel = null; $("loadbar").hidden = true; throw new Error("Max couldn't load: " + (err.message || err) + ". Close other tabs and try again, or pick the Fast brain in settings."); });
   }
-  bubble.innerHTML = '<span class="thinking">Getting Max ready… the first time downloads his brain, so it can take a few minutes.</span>';
+  note();
   return loading;
 }
 
-welcome();
-if (!navigator.gpu) setStatus("Heads up: this browser doesn't support WebGPU, which Max needs. Try a recent Chrome, Edge or Safari.");
+/* ---------- rendering ---------- */
+const svg = (id) => `<svg><use href="#i-${id}"/></svg>`;
+function renderMessage(m, i) {
+  if (m.role === "user") {
+    const el = document.createElement("div"); el.className = "turn-user";
+    if (m.files?.length) el.insertAdjacentHTML("beforeend", `<div class="files">${m.files.map((f) => chipHTML(f, false)).join("")}</div>`);
+    if (m.content) { const b = document.createElement("div"); b.className = "bubble"; b.textContent = m.content; el.appendChild(b); }
+    return el;
+  }
+  const el = document.createElement("div"); el.className = "turn-max";
+  el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}</div></div>`;
+  el.querySelector(".text").innerHTML = md(m.content);
+  el.dataset.index = i;
+  return el;
+}
+function renderThread() {
+  thread.innerHTML = "";
+  const msgs = current?.messages || [];
+  welcome.hidden = msgs.length > 0;
+  msgs.forEach((m, i) => thread.appendChild(renderMessage(m, i)));
+  $("title").textContent = current?.messages.length ? current.title : "";
+  scroller.scrollTop = scroller.scrollHeight;
+}
+function renderHistory() {
+  const h = $("history");
+  if (!chats.length) { h.innerHTML = '<div class="hempty">Your lessons will show up here.</div>'; return; }
+  h.innerHTML = chats.map((c) => `<div class="hitem${current && c.id === current.id ? " active" : ""}" data-id="${c.id}"><button class="open" type="button">${esc(c.title)}</button><button class="iconbtn del" type="button" aria-label="Delete ${esc(c.title)}">${svg("trash")}</button></div>`).join("");
+}
+$("history").addEventListener("click", (e) => {
+  const item = e.target.closest(".hitem"); if (!item || busy) return;
+  const id = item.dataset.id;
+  if (e.target.closest(".del")) {
+    chats = chats.filter((c) => c.id !== id); saveChats();
+    if (current?.id === id) newChat(); else renderHistory();
+    return;
+  }
+  current = chats.find((c) => c.id === id); renderThread(); renderHistory(); closeSideOnPhone();
+});
+thread.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const i = +b.closest(".turn-max").dataset.index;
+  if (b.dataset.act === "copy") {
+    const t = current.messages[i].content;
+    try { await navigator.clipboard.writeText(t); b.innerHTML = svg("copy"); b.title = "Copied"; setTimeout(() => (b.title = "Copy"), 1500); }
+    catch { const r = document.createRange(); r.selectNodeContents(b.closest(".body").querySelector(".text")); getSelection().removeAllRanges(); getSelection().addRange(r); }
+  } else if (b.dataset.act === "redo" && !busy) {
+    current.messages.pop(); renderThread(); respond();
+  }
+});
+
+/* ---------- chat flow ---------- */
+function newChat() {
+  current = { id: Date.now().toString(36), title: "New lesson", messages: [], created: Date.now() };
+  renderThread(); renderHistory(); setStatus(""); closeSideOnPhone(); input.focus();
+}
+function setStatus(t) { statusEl.textContent = t || ""; statusEl.hidden = !t; }
+function updateSend() {
+  const reading = pending.some((f) => !f.error && !f.text);
+  sendBtn.disabled = !busy && (reading || (!input.value.trim() && !pending.some((f) => f.text)));
+  sendBtn.innerHTML = svg(busy ? "stop" : "up");
+  sendBtn.setAttribute("aria-label", busy ? "Stop" : "Send");
+}
+function modelMessages() {
+  return current.messages.slice(-10).map((m) => {
+    if (m.role !== "user" || !m.files?.length) return { role: m.role, content: m.content };
+    const docs = m.files.filter((f) => f.text).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
+    return { role: "user", content: `${docs}\n\n${m.content || "Please help me understand this file."}` };
+  });
+}
+async function send(text) {
+  text = (text || "").trim();
+  const files = pending.filter((f) => f.text).map(({ id, name, size, kind, text, thumb, status, cut }) => ({ id, name, size, kind, text, thumb, status, cut }));
+  if (busy || (!text && !files.length)) return;
+  if (pending.some((f) => !f.error && !f.text)) { setStatus("Wait a moment, Max is still reading your file."); return; }
+  if (!chats.includes(current)) chats.unshift(current);
+  if (current.messages.length === 0) current.title = (text || files[0]?.name || "New lesson").slice(0, 48);
+  current.messages.push({ role: "user", content: text, files });
+  pending = []; renderPending();
+  input.value = ""; autosize();
+  renderThread(); renderHistory(); saveChats();
+  respond();
+}
+async function respond() {
+  const box = document.createElement("div"); box.className = "turn-max";
+  box.innerHTML = '<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"><span class="thinking">Max is thinking</span></div></div>';
+  thread.appendChild(box); scroller.scrollTop = scroller.scrollHeight;
+  const out = box.querySelector(".text");
+  busy = true; ctl = new AbortController(); updateSend(); setStatus("");
+  let answer = "";
+  try {
+    const eng = await loadEngine(() => { out.innerHTML = '<span class="thinking">Getting Max ready. The first time downloads his brain, so it can take a few minutes</span>'; });
+    if (ctl.signal.aborted) throw new DOMException("stopped", "AbortError");
+    out.innerHTML = '<span class="thinking">Max is thinking</span>';
+    const stream = await eng.chat.completions.create({
+      stream: true, temperature: 0.6, max_tokens: 700,
+      messages: [{ role: "system", content: systemPrompt(prefs) }, ...modelMessages()],
+    });
+    for await (const chunk of stream) {
+      if (ctl.signal.aborted) { eng.interruptGenerate(); break; }
+      answer += chunk.choices[0]?.delta?.content || "";
+      const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+      out.innerHTML = md(answer);
+      if (near) scroller.scrollTop = scroller.scrollHeight;
+    }
+    if (!answer.trim() && !ctl.signal.aborted) throw new Error("Max didn't say anything. Try again.");
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (e.name !== "AbortError") setStatus(/context|too long|exceed/i.test(msg) ? "That was too much for Max to read at once. Try a shorter file or start a new lesson." : msg);
+  }
+  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim() });
+  busy = false; ctl = null;
+  renderThread(); saveChats(); updateSend();
+}
+
+/* ---------- controls ---------- */
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
+input.addEventListener("input", () => { autosize(); updateSend(); });
+input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(input.value); } });
+$("composer").addEventListener("submit", (e) => { e.preventDefault(); if (busy) ctl?.abort(); else send(input.value); });
+$("starters").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setMode(b.dataset.mode); send(b.firstChild.textContent); });
+
+function setMode(m) {
+  prefs.mode = m; savePrefs();
+  document.querySelectorAll(".modes button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m)));
+  $("modeTag").textContent = MODES[m].label;
+}
+document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
+$("modeTag").title = "Click to switch mode";
+$("modeTag").style.cursor = "pointer";
+$("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
+
+const pop = $("popover"), setBtn = $("settingsBtn");
+setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
+document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== setBtn) { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { pop.hidden = true; shell.classList.remove("side-open"); } });
+$("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
+$("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
+$("model").onchange = (e) => { prefs.model = e.target.value; savePrefs(); };
+
+const isPhone = () => matchMedia("(max-width: 820px)").matches;
+function closeSideOnPhone() { shell.classList.remove("side-open"); }
+$("openSide").onclick = () => { if (isPhone()) shell.classList.add("side-open"); else { shell.classList.remove("collapsed"); prefs.collapsed = false; savePrefs(); } };
+$("closeSide").onclick = () => { if (isPhone()) closeSideOnPhone(); else { shell.classList.add("collapsed"); prefs.collapsed = true; savePrefs(); } };
+$("scrim").onclick = closeSideOnPhone;
+$("newChat").onclick = () => { if (!busy) newChat(); };
+
+/* ---------- start ---------- */
+$("level").value = prefs.level; $("levelTag").textContent = prefs.level;
+$("subject").value = prefs.subject || "";
+$("model").value = prefs.model; if (!$("model").value) { $("model").selectedIndex = 1; prefs.model = $("model").value; }
+setMode(MODES[prefs.mode] ? prefs.mode : "teach");
+if (prefs.collapsed) shell.classList.add("collapsed");
+const hr = new Date().getHours();
+$("greeting").textContent = (hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + ". What do you want to learn?";
+newChat();
+if (!navigator.gpu) setStatus("This browser doesn't support WebGPU, which Max needs. Try a recent Chrome or Edge, or Safari on iOS/macOS 26+.");
 </script>
 </body>
 </html>
