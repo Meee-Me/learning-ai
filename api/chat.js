@@ -1,9 +1,13 @@
-// Max's cloud brain: Claude Haiku 5.5 through Vercel AI Gateway.
-// On Vercel it signs in with the project's own OIDC token, so no API key is needed;
-// usage comes out of the Vercel team's AI Gateway credit.
+// Max's brain. Runs as a Vercel function and asks one of two AIs:
+//  - Cloudflare Workers AI (free, no card): set CF_ACCOUNT_ID and CF_API_TOKEN in Vercel.
+//  - Otherwise Vercel AI Gateway with Claude Haiku 5.5 (needs a card on the Vercel team).
 import { getVercelOidcToken } from "@vercel/oidc";
 
-const MODEL = process.env.MAX_MODEL || "anthropic/claude-haiku-5.5";
+const CF = process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN;
+const MODEL = process.env.MAX_MODEL || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : "anthropic/claude-haiku-5.5");
+const URL_ = CF
+  ? `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`
+  : "https://ai-gateway.vercel.sh/v1/chat/completions";
 
 const MODES = {
   teach: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding.",
@@ -23,7 +27,7 @@ export default async function handler(req, res) {
   const mode = MODES[body.mode] ? body.mode : "teach";
   const level = LEVELS.includes(body.level) ? body.level : "High school";
   const subject = String(body.subject || "").slice(0, 80);
-  let budget = 120000; // characters of conversation we'll send, newest first
+  let budget = CF ? 40000 : 120000; // characters of conversation we'll send, newest first
   const messages = [];
   for (const m of (Array.isArray(body.messages) ? body.messages : []).slice(-20).reverse()) {
     if ((m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content.trim()) continue;
@@ -39,12 +43,12 @@ export default async function handler(req, res) {
 
   let token;
   try {
-    token = process.env.AI_GATEWAY_API_KEY || (await getVercelOidcToken());
+    token = CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || (await getVercelOidcToken());
   } catch {
     return res.status(500).json({ error: "Max's cloud brain isn't set up: this must run on Vercel (or set AI_GATEWAY_API_KEY)." });
   }
 
-  const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+  const upstream = await fetch(URL_, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: MODEL, stream: true, max_tokens: 1500, messages: [{ role: "system", content: system(subject, level, mode) }, ...messages] }),
@@ -52,11 +56,13 @@ export default async function handler(req, res) {
 
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => "");
-    console.error("AI Gateway error", upstream.status, detail.slice(0, 500));
+    console.error("AI error", upstream.status, detail.slice(0, 500));
     let reason = "";
-    try { const j = JSON.parse(detail); reason = j.error?.message || j.message || ""; } catch { reason = detail.slice(0, 300); }
+    try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || ""; } catch { reason = detail.slice(0, 300); }
     const msg = upstream.status === 429 && !/credit|billing|payment|fund/i.test(reason) ? "Max is getting a lot of questions right now. Wait a moment and try again."
-      : /credit|billing|payment|fund|quota/i.test(reason) || upstream.status === 402 ? "Max's server has no AI credit. In Vercel, open the AI Gateway tab to claim the free credit (it may ask for a card) or add credit."
+      : CF && /limit|neuron|quota/i.test(reason) ? "Max has used today's free AI. He'll be back tomorrow."
+      : CF && (upstream.status === 401 || upstream.status === 403) ? "Max's Cloudflare token isn't working. Check CF_API_TOKEN and CF_ACCOUNT_ID in Vercel."
+      : /credit|card|billing|payment|fund|quota/i.test(reason) || upstream.status === 402 ? "Max needs free AI set up. Add CF_ACCOUNT_ID and CF_API_TOKEN in Vercel (see the README), or add a card in Vercel's AI Gateway tab."
       : upstream.status === 401 || upstream.status === 403 ? "Max's server isn't allowed to use AI Gateway yet. Open the AI Gateway tab in Vercel and turn it on."
       : "Max's server didn't get an answer. Try again.";
     return res.status(502).json({ error: msg + (reason ? ` (Vercel said: ${reason.slice(0, 200)})` : ` (error ${upstream.status})`) });
