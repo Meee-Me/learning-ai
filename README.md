@@ -20,6 +20,7 @@ Pick a subject and level, then choose how he helps:
 
 | Option | Model | Download |
 |---|---|---|
+| Tiny (default on phones) | Qwen 2.5 0.5B | about 0.3 GB |
 | Fast | Llama 3.2 1B | about 0.9 GB |
 | Smarter (default) | Qwen 2.5 1.5B | about 1.6 GB |
 | Smartest (computers) | Llama 3.2 3B | about 2.3 GB |
