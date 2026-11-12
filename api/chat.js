@@ -53,11 +53,13 @@ export default async function handler(req, res) {
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => "");
     console.error("AI Gateway error", upstream.status, detail.slice(0, 500));
-    const msg = upstream.status === 429 ? "Max is getting a lot of questions right now. Wait a moment and try again."
-      : upstream.status === 402 || /credit|billing|payment/i.test(detail) ? "Max's free cloud credit has run out for now. Switch to an on-device brain in settings, or add AI Gateway credit in Vercel."
-      : upstream.status === 401 || upstream.status === 403 ? "Max's cloud brain isn't allowed yet. Turn on AI Gateway for this Vercel project."
-      : "Max's cloud brain didn't answer. Try again.";
-    return res.status(502).json({ error: msg });
+    let reason = "";
+    try { const j = JSON.parse(detail); reason = j.error?.message || j.message || ""; } catch { reason = detail.slice(0, 300); }
+    const msg = upstream.status === 429 && !/credit|billing|payment|fund/i.test(reason) ? "Max is getting a lot of questions right now. Wait a moment and try again."
+      : /credit|billing|payment|fund|quota/i.test(reason) || upstream.status === 402 ? "Max's server has no AI credit. In Vercel, open the AI Gateway tab to claim the free credit (it may ask for a card) or add credit."
+      : upstream.status === 401 || upstream.status === 403 ? "Max's server isn't allowed to use AI Gateway yet. Open the AI Gateway tab in Vercel and turn it on."
+      : "Max's server didn't get an answer. Try again.";
+    return res.status(502).json({ error: msg + (reason ? ` (Vercel said: ${reason.slice(0, 200)})` : ` (error ${upstream.status})`) });
   }
 
   res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" });
