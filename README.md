@@ -13,12 +13,11 @@ Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
   code files, and pictures of text (read with OCR).
 - **Sign in with Deluxe Main** to keep lessons and settings in your Deluxe account on every device.
 
-## Brains
+## How it works
 
-| Option | Where it runs | Notes |
-|---|---|---|
-| **Cloud** (default) | Vercel AI Gateway, Claude Haiku 5.5 | No download, works on any phone. Reads up to 60,000 characters per file. |
-| Tiny / Fast / Smarter / Smartest | Your device, with [WebLLM](https://github.com/mlc-ai/web-llm) | Free and offline after a 0.3–2.3 GB download. Needs WebGPU; often too heavy for phones. |
+Max's brain is a small server: `api/chat.js`, a Vercel function that sends the conversation to
+Claude Haiku 5.5 through Vercel AI Gateway and streams the answer back. Nothing to download, and it
+works on any phone or computer.
 
 ## Files
 

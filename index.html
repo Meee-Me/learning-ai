@@ -139,10 +139,6 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 
 /* Composer */
 .dock { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
-.loadbar { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
-.loadbar p { margin: 0; font-size: 12.5px; color: var(--muted); }
-.loadtrack { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
-.loadfill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
 .composer { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 10px 10px 8px 14px; display: flex; flex-direction: column; gap: 8px; transition: border-color .15s; }
 .composer:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .composer.drag { border-color: var(--accent); border-style: dashed; }
@@ -217,16 +213,6 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
       <label>Subject (optional)
         <input id="subject" type="text" placeholder="e.g. fractions, biology, Python">
       </label>
-      <label>Brain
-        <select id="model">
-          <option value="cloud">Cloud · Claude Haiku 5.5 (no download, best)</option>
-          <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Tiny · Qwen 2.5 0.5B (0.3 GB, best for phones)</option>
-          <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Fast · Llama 3.2 1B (0.9 GB)</option>
-          <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC" selected>Smarter · Qwen 2.5 1.5B (1.6 GB)</option>
-          <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Smartest · Llama 3.2 3B (2.3 GB, computers)</option>
-        </select>
-      </label>
-      <p class="hint">Cloud works on any device right away. The other brains run on your device: they download once, then work offline.</p>
     </div>
 
     <div class="scroller" id="scroller">
@@ -253,10 +239,6 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 
     <div class="dock">
       <div class="column">
-        <div class="loadbar" id="loadbar" hidden>
-          <div class="loadtrack"><div class="loadfill" id="loadfill"></div></div>
-          <p id="loadtext">Downloading Max's brain…</p>
-        </div>
         <form class="composer" id="composer">
           <div class="files" id="pending" hidden></div>
           <textarea id="input" rows="1" placeholder="Ask Max anything…" aria-label="Message Max"></textarea>
@@ -277,13 +259,11 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 </div>
 
 <script type="module">
-const WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm";
 const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 const MAMMOTH = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
 const TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
 const FILE_CHAR_LIMIT = 60000;  // what we keep from each file
-const LOCAL_FILE_LIMIT = 7000;  // on-device brains have small memories
 const MAX_FILE_MB = 25;
 
 const MODES = {
@@ -305,7 +285,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
 };
 let chats = store.get("max.chats", []);
-let prefs = store.get("max.prefs", { level: "High school", subject: "", model: "cloud", mode: "teach", collapsed: false });
+let prefs = store.get("max.prefs", { level: "High school", subject: "", mode: "teach", collapsed: false });
 let current = null;      // the open chat object
 let pending = [];        // files waiting to send: {id,name,size,kind,text,thumb,status}
 let busy = false, ctl = null;
@@ -482,43 +462,6 @@ main.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].include
 main.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; veil.hidden = true; } });
 main.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; veil.hidden = true; if (e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
 
-/* ---------- AI engine ---------- */
-let engine = null, loading = null, loadedModel = null, watchdog = 0;
-const isApple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const isBrave = !!navigator.brave;
-function stuckTip() {
-  return "The download seems stuck. Check you're on Wi-Fi" +
-    (isBrave ? ", and turn off Brave Shields for this site (lion icon), then reload" : "") +
-    (isApple ? ". On iPhone, Safari works best, and the Tiny brain needs the least memory." : ". Try the Tiny or Fast brain in settings.");
-}
-function loadEngine(note) {
-  const model = prefs.model;
-  if (engine && loadedModel === model) return Promise.resolve(engine);
-  if (!navigator.gpu) return Promise.reject(new Error("This browser can't run Max's AI. Use a recent Chrome or Edge, or Safari on iOS/macOS 26 or newer."));
-  if (!loading || loadedModel !== model) {
-    loadedModel = model;
-    let lastText = "", lastChange = Date.now();
-    const mb = (t) => { const m = (t || "").match(/(\d+)\s*MB/i); return m ? ` · ${m[1]} MB` : ""; };
-    const show = (r) => {
-      const pct = Math.round((r.progress || 0) * 100);
-      if (r.text !== lastText) { lastText = r.text; lastChange = Date.now(); }
-      $("loadbar").hidden = false; $("loadfill").style.width = Math.max(pct, 2) + "%";
-      $("loadtext").textContent = pct < 100 ? `Downloading Max's brain… ${pct}%${mb(r.text)} (only the first time)` : "Waking Max up…";
-    };
-    $("loadbar").hidden = false; $("loadfill").style.width = "2%"; $("loadtext").textContent = "Starting the download…";
-    clearInterval(watchdog);
-    watchdog = setInterval(() => {
-      if (engine && loadedModel === model) return clearInterval(watchdog);
-      if (Date.now() - lastChange > 45000) setStatus(stuckTip());
-    }, 5000);
-    loading = (engine ? engine.reload(model).then(() => engine) : import(WEBLLM_URL).then((w) => w.CreateMLCEngine(model, { initProgressCallback: show, appConfig: { ...w.prebuiltAppConfig, cacheBackend: isApple ? "indexeddb" : "cache" } })))
-      .then((e) => { engine = e; $("loadbar").hidden = true; clearInterval(watchdog); setStatus(""); return e; })
-      .catch((err) => { clearInterval(watchdog); loading = null; loadedModel = null; $("loadbar").hidden = true; throw new Error("Max couldn't load: " + (err.message || err) + ". Close other tabs and try again, or pick the Fast brain in settings."); });
-  }
-  note();
-  return loading;
-}
-
 /* ---------- rendering ---------- */
 const svg = (id) => `<svg><use href="#i-${id}"/></svg>`;
 function renderMessage(m, i) {
@@ -584,8 +527,7 @@ function updateSend() {
 function modelMessages() {
   return current.messages.slice(-10).map((m) => {
     if (m.role !== "user" || !m.files?.length) return { role: m.role, content: m.content };
-    const lim = prefs.model === "cloud" ? FILE_CHAR_LIMIT : LOCAL_FILE_LIMIT;
-    const docs = m.files.filter((f) => f.text).map((f) => `<file name="${f.name}">\n${f.text.slice(0, lim)}\n</file>`).join("\n\n");
+    const docs = m.files.filter((f) => f.text).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
     return { role: "user", content: `${docs}\n\n${m.content || "Please help me understand this file."}` };
   });
 }
@@ -610,46 +552,28 @@ async function respond() {
   busy = true; ctl = new AbortController(); updateSend(); setStatus("");
   let answer = "";
   try {
-    if (prefs.model === "cloud") {
-      const res = await fetch("/api/chat", {
-        method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode }),
-      });
-      if (!res.ok || !res.body) {
-        let msg = "Max's cloud brain didn't answer. Try again.";
-        try { msg = (await res.json()).error || msg; } catch {}
-        throw new Error(msg);
-      }
-      const reader = res.body.getReader(), dec = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        answer += dec.decode(value, { stream: true });
-        const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
-        out.innerHTML = md(answer);
-        if (near) scroller.scrollTop = scroller.scrollHeight;
-      }
-    } else {
-      const stopped = new Promise((_, rej) => ctl.signal.addEventListener("abort", () => rej(new DOMException("stopped", "AbortError"))));
-      const eng = await Promise.race([stopped, loadEngine(() => { out.innerHTML = '<span class="thinking">Getting Max ready. The first time downloads his brain, so it can take a few minutes</span>'; })]);
-      if (ctl.signal.aborted) throw new DOMException("stopped", "AbortError");
-      out.innerHTML = '<span class="thinking">Max is thinking</span>';
-      const stream = await eng.chat.completions.create({
-        stream: true, temperature: 0.6, max_tokens: 700,
-        messages: [{ role: "system", content: systemPrompt(prefs) }, ...modelMessages()],
-      });
-      for await (const chunk of stream) {
-        if (ctl.signal.aborted) { eng.interruptGenerate(); break; }
-        answer += chunk.choices[0]?.delta?.content || "";
-        const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
-        out.innerHTML = md(answer);
-        if (near) scroller.scrollTop = scroller.scrollHeight;
-      }
+    const res = await fetch("/api/chat", {
+      method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode }),
+    });
+    if (!res.ok || !res.body) {
+      let msg = "Max's cloud brain didn't answer. Try again.";
+      try { msg = (await res.json()).error || msg; } catch {}
+      throw new Error(msg);
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      answer += dec.decode(value, { stream: true });
+      const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+      out.innerHTML = md(answer);
+      if (near) scroller.scrollTop = scroller.scrollHeight;
     }
     if (!answer.trim() && !ctl.signal.aborted) throw new Error("Max didn't say anything. Try again.");
   } catch (e) {
     const msg = String(e?.message || e);
-    if (e.name !== "AbortError") setStatus(/context|too long|exceed/i.test(msg) ? "That was too much for Max to read at once. Try a shorter file or start a new lesson." : msg);
+    if (e.name !== "AbortError") setStatus(/failed to fetch|load failed|network/i.test(msg) ? "Max couldn't reach his server. Check your internet and try again." : msg);
   }
   if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim() });
   busy = false; ctl = null;
@@ -679,7 +603,6 @@ document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.t
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { pop.hidden = true; shell.classList.remove("side-open"); } });
 $("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
 $("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
-$("model").onchange = (e) => { prefs.model = e.target.value; prefs.modelChosen = true; savePrefs(); };
 
 const isPhone = () => matchMedia("(max-width: 820px)").matches;
 function closeSideOnPhone() { shell.classList.remove("side-open"); }
@@ -692,13 +615,10 @@ $("newChat").onclick = () => { if (!busy) newChat(); };
 function applyPrefs() {
   $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
   $("subject").value = prefs.subject || "";
-  if (prefs.model) $("model").value = prefs.model;
   if (MODES[prefs.mode]) setMode(prefs.mode);
 }
 $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
 $("subject").value = prefs.subject || "";
-if (!prefs.modelChosen) prefs.model = "cloud";
-$("model").value = prefs.model; if (!$("model").value) { $("model").selectedIndex = 1; prefs.model = $("model").value; }
 setMode(MODES[prefs.mode] ? prefs.mode : "teach");
 if (prefs.collapsed) shell.classList.add("collapsed");
 const hr = new Date().getHours();
