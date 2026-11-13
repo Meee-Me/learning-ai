@@ -1,13 +1,18 @@
-// Max's brain. Runs as a Vercel function and asks one of two AIs:
-//  - Cloudflare Workers AI (free, no card): set CF_ACCOUNT_ID and CF_API_TOKEN in Vercel.
-//  - Otherwise Vercel AI Gateway with Claude Haiku 5.5 (needs a card on the Vercel team).
+// Max's brain. Runs as a Vercel function and asks one of three AIs:
+//  - "free" (default): Pollinations, a free public AI service. No key, no card, no setup.
+//  - Cloudflare Workers AI: used when CF_ACCOUNT_ID and CF_API_TOKEN are set in Vercel.
+//  - Vercel AI Gateway (Claude Haiku 5.5): used when MAX_BRAIN=gateway or AI_GATEWAY_API_KEY
+//    is set. Needs a card on the Vercel team.
 import { getVercelOidcToken } from "@vercel/oidc";
 
 const CF = process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN;
-const MODEL = process.env.MAX_MODEL || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : "anthropic/claude-haiku-5.5");
+const GATEWAY = !CF && (process.env.MAX_BRAIN === "gateway" || process.env.AI_GATEWAY_API_KEY);
+const FREE = !CF && !GATEWAY;
+const MODEL = process.env.MAX_MODEL || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : GATEWAY ? "anthropic/claude-haiku-5.5" : "openai");
 const URL_ = CF
   ? `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`
-  : "https://ai-gateway.vercel.sh/v1/chat/completions";
+  : GATEWAY ? "https://ai-gateway.vercel.sh/v1/chat/completions"
+  : "https://text.pollinations.ai/openai";
 
 const MODES = {
   teach: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding.",
@@ -27,7 +32,7 @@ export default async function handler(req, res) {
   const mode = MODES[body.mode] ? body.mode : "teach";
   const level = LEVELS.includes(body.level) ? body.level : "High school";
   const subject = String(body.subject || "").slice(0, 80);
-  let budget = CF ? 40000 : 120000; // characters of conversation we'll send, newest first
+  let budget = GATEWAY ? 120000 : 40000; // characters of conversation we'll send, newest first
   const messages = [];
   for (const m of (Array.isArray(body.messages) ? body.messages : []).slice(-20).reverse()) {
     if ((m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content.trim()) continue;
@@ -43,14 +48,14 @@ export default async function handler(req, res) {
 
   let token;
   try {
-    token = CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || (await getVercelOidcToken());
+    token = FREE ? "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || (await getVercelOidcToken());
   } catch {
     return res.status(500).json({ error: "Max's cloud brain isn't set up: this must run on Vercel (or set AI_GATEWAY_API_KEY)." });
   }
 
   const upstream = await fetch(URL_, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
     body: JSON.stringify({ model: MODEL, stream: true, max_tokens: 1500, messages: [{ role: "system", content: system(subject, level, mode) }, ...messages] }),
   }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
 
@@ -60,6 +65,7 @@ export default async function handler(req, res) {
     let reason = "";
     try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || ""; } catch { reason = detail.slice(0, 300); }
     const msg = upstream.status === 429 && !/credit|billing|payment|fund/i.test(reason) ? "Max is getting a lot of questions right now. Wait a moment and try again."
+      : FREE ? (upstream.status === 429 ? "Max's free AI is busy. Wait a few seconds and try again." : "Max's free AI didn't answer. Try again in a moment.")
       : CF && /limit|neuron|quota/i.test(reason) ? "Max has used today's free AI. He'll be back tomorrow."
       : CF && (upstream.status === 401 || upstream.status === 403) ? "Max's Cloudflare token isn't working. Check CF_API_TOKEN and CF_ACCOUNT_ID in Vercel."
       : /credit|card|billing|payment|fund|quota/i.test(reason) || upstream.status === 402 ? "Max needs free AI set up. Add CF_ACCOUNT_ID and CF_API_TOKEN in Vercel (see the README), or add a card in Vercel's AI Gateway tab."

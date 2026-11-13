@@ -18,20 +18,21 @@ Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
 Max's brain is a small server on Vercel: `api/chat.js`. It sends the conversation to an AI and
 streams the answer back. Nothing to download; works on any phone or computer.
 
-### Free AI, no card (Cloudflare Workers AI)
+### Default: free AI, no setup
 
-1. Make a free account at dash.cloudflare.com (or use the one Deluxe Drive runs on).
-2. Copy your **Account ID** (Workers & Pages → right side of the page).
-3. My Profile → **API Tokens** → Create Token → template **Workers AI** → Create. Copy the token.
-4. In Vercel: project → Settings → **Environment Variables**, add `CF_ACCOUNT_ID` and `CF_API_TOKEN`.
-5. Deployments → **Redeploy**.
+With nothing configured, Max asks [Pollinations](https://pollinations.ai), a free public AI service.
+No key, no card. It is run by someone else, so it can be slow or busy at times, and the messages
+(and attached file text) are sent to it. Don't share private things with Max.
 
-Max then uses Llama 3.3 70B on Cloudflare's free daily allowance.
+### Optional: Cloudflare Workers AI (free, more reliable)
 
-### Or Claude through Vercel AI Gateway
+Add `CF_ACCOUNT_ID` and `CF_API_TOKEN` (a token from the Workers AI template) in Vercel's
+Environment Variables and redeploy. Max then uses Llama 3.3 70B on Cloudflare's free daily allowance.
 
-With no Cloudflare variables, Max uses Claude Haiku 5.5 through Vercel AI Gateway. Vercel needs a
-credit card on the team to unlock its free AI credit.
+### Optional: Claude through Vercel AI Gateway
+
+Set `MAX_BRAIN=gateway` in Vercel. Max then uses Claude Haiku 5.5. Vercel needs a credit card on
+the team to unlock its free AI credit.
 
 ## Files
 
