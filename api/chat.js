@@ -8,7 +8,7 @@ import { getVercelOidcToken } from "@vercel/oidc";
 const CF = process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN;
 const GATEWAY = !CF && (process.env.MAX_BRAIN === "gateway" || process.env.AI_GATEWAY_API_KEY);
 const FREE = !CF && !GATEWAY;
-const MODEL = process.env.MAX_MODEL || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : GATEWAY ? "anthropic/claude-haiku-5.5" : "openai");
+const MODEL = process.env.MAX_MODEL || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : GATEWAY ? "anthropic/claude-haiku-5.5" : "openai-fast");
 const URL_ = CF
   ? `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`
   : GATEWAY ? "https://ai-gateway.vercel.sh/v1/chat/completions"
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   const mode = MODES[body.mode] ? body.mode : "teach";
   const level = LEVELS.includes(body.level) ? body.level : "High school";
   const subject = String(body.subject || "").slice(0, 80);
-  let budget = GATEWAY ? 120000 : 40000; // characters of conversation we'll send, newest first
+  let budget = GATEWAY ? 120000 : 24000; // characters of conversation we'll send, newest first
   const messages = [];
   for (const m of (Array.isArray(body.messages) ? body.messages : []).slice(-20).reverse()) {
     if ((m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content.trim()) continue;
@@ -55,11 +55,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Max's cloud brain isn't set up: this must run on Vercel (or set AI_GATEWAY_API_KEY)." });
   }
 
-  const upstream = await fetch(URL_, {
+  const ask = (model) => fetch(URL_, {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, stream: true, max_tokens: 1500, messages: [{ role: "system", content: system(subject, level, mode) + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : 1200, messages: [{ role: "system", content: system(subject, level, mode) + (body.voice ? VOICE : "") }, ...messages] }),
   }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
+  let upstream = await ask(MODEL);
+  // The free service's fast model can be missing or busy: fall back to its standard one.
+  if (FREE && !upstream.ok && MODEL !== "openai") upstream = await ask("openai");
 
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => "");
