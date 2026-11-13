@@ -150,6 +150,30 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .send:disabled { opacity: .35; cursor: default; }
 .foot { text-align: center; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .status { text-align: center; font-size: 12.5px; color: var(--danger); margin: 6px 0 0; min-height: 0; }
+.voicebtn { color: var(--accent); }
+.voice { position: absolute; inset: 0; z-index: 25; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px max(20px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); text-align: center; }
+.vstate { margin: 0; font-family: var(--font-display); font-size: 20px; color: var(--muted); }
+.orb { position: relative; width: min(56vw, 240px); aspect-ratio: 1; border: 0; background: none; cursor: pointer; padding: 0; border-radius: 50%; }
+.orb .core { position: absolute; inset: 18%; border-radius: 50%; background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--accent) 55%, white), var(--accent) 62%, color-mix(in srgb, var(--accent) 70%, black)); color: var(--accent-ink); display: grid; place-items: center; font: 600 clamp(40px, 12vw, 64px) var(--font-display); box-shadow: 0 10px 40px color-mix(in srgb, var(--accent) 45%, transparent); transition: transform .25s; }
+.orb .ring { position: absolute; inset: 18%; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
+.orb[data-state="listening"] .ring { animation: ripple 2.2s infinite ease-out; }
+.orb[data-state="listening"] .r2 { animation-delay: 1.1s; }
+.orb[data-state="listening"] .core { animation: breathe 2.2s infinite ease-in-out; }
+.orb[data-state="thinking"] .core { animation: wobble 1.1s infinite ease-in-out; }
+.orb[data-state="speaking"] .core { animation: talk .55s infinite ease-in-out alternate; }
+.orb[data-state="speaking"] .r1 { opacity: .35; inset: 10%; border-color: var(--chalk); animation: talk .55s infinite ease-in-out alternate-reverse; }
+.orb[data-state="muted"] .core, .orb[data-state="off"] .core { filter: saturate(.25); opacity: .7; }
+@keyframes ripple { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.75); opacity: 0; } }
+@keyframes breathe { 50% { transform: scale(1.05); } }
+@keyframes wobble { 0%,100% { transform: scale(.94) rotate(-4deg); } 50% { transform: scale(1) rotate(4deg); } }
+@keyframes talk { from { transform: scale(.96); } to { transform: scale(1.1); } }
+.vcaption { margin: 0; max-width: 34ch; min-height: 4.8em; max-height: 9.6em; overflow: hidden; font-size: 17px; display: flex; flex-direction: column; justify-content: flex-end; }
+.vcaption.you { color: var(--muted); font-style: italic; }
+.vbar { display: flex; gap: 18px; }
+.vbtn { width: 60px; height: 60px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow); }
+.vbtn svg { width: 24px; height: 24px; }
+.vbtn[aria-pressed="true"] { background: var(--danger); color: var(--surface); border-color: transparent; }
+.vbtn.end { background: var(--ink); color: var(--bg); border-color: transparent; }
 .dropveil { position: absolute; inset: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 85%, transparent); display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 16px; margin: 8px; pointer-events: none; font-family: var(--font-display); font-size: 22px; color: var(--accent); }
 
 /* Phone: sidebar slides over */
@@ -171,6 +195,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.5 12 20a5.5 5.5 0 0 1-7.8-7.8l8.8-8.7a3.7 3.7 0 0 1 5.2 5.2l-8.7 8.8a1.8 1.8 0 0 1-2.6-2.6l8-8"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-micoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v2a3 3 0 0 0 4.6 2.5M15 10V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11 5.7M19 11a7 7 0 0 1-.6 2.8M12 18v3M4 4l16 16"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
@@ -247,6 +274,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <input id="fileInput" type="file" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.rb,.go,.rs,.php,.sql,.xml,.yaml,.yml,.tex,.rtf,image/*,text/*">
             <span class="mode-tag" id="modeTag">Teach me</span>
             <span class="grow"></span>
+            <button class="iconbtn voicebtn" id="voiceBtn" type="button" aria-label="Talk to Max" title="Talk to Max"><svg><use href="#i-wave"/></svg></button>
             <button class="send" id="send" type="submit" aria-label="Send" disabled><svg><use href="#i-up"/></svg></button>
           </div>
         </form>
@@ -254,6 +282,17 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
         <p class="foot">Max can make mistakes. Check important answers.</p>
       </div>
     </div>
+    <section class="voice" id="voice" hidden aria-label="Talk to Max">
+      <p class="vstate" id="vstate" aria-live="polite">Listening…</p>
+      <button class="orb" id="orb" type="button" data-state="listening" aria-label="Tap to interrupt Max">
+        <span class="ring r1"></span><span class="ring r2"></span><span class="core">M</span>
+      </button>
+      <p class="vcaption" id="vcaption"></p>
+      <div class="vbar">
+        <button class="vbtn" id="vmute" type="button" aria-pressed="false" aria-label="Mute microphone"><svg><use href="#i-mic"/></svg></button>
+        <button class="vbtn end" id="vclose" type="button" aria-label="End voice chat"><svg><use href="#i-x"/></svg></button>
+      </div>
+    </section>
     <div class="dropveil" id="dropveil" hidden>Drop files for Max to read</div>
   </main>
 </div>
@@ -531,7 +570,7 @@ function modelMessages() {
     return { role: "user", content: `${docs}\n\n${m.content || "Please help me understand this file."}` };
   });
 }
-async function send(text) {
+async function send(text, opts) {
   text = (text || "").trim();
   const files = pending.filter((f) => f.text).map(({ id, name, size, kind, text, thumb, status, cut }) => ({ id, name, size, kind, text, thumb, status, cut }));
   if (busy || (!text && !files.length)) return;
@@ -542,9 +581,9 @@ async function send(text) {
   pending = []; renderPending();
   input.value = ""; autosize();
   renderThread(); renderHistory(); saveChats(current);
-  respond();
+  return respond(opts);
 }
-async function respond() {
+async function respond(opts = {}) {
   const box = document.createElement("div"); box.className = "turn-max";
   box.innerHTML = '<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"><span class="thinking">Max is thinking</span></div></div>';
   thread.appendChild(box); scroller.scrollTop = scroller.scrollHeight;
@@ -554,7 +593,7 @@ async function respond() {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode }),
+      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, voice: !!opts.voice }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -569,16 +608,103 @@ async function respond() {
       const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
       out.innerHTML = md(answer);
       if (near) scroller.scrollTop = scroller.scrollHeight;
+      opts.onText?.(answer);
     }
     if (!answer.trim() && !ctl.signal.aborted) throw new Error("Max didn't say anything. Try again.");
   } catch (e) {
     const msg = String(e?.message || e);
-    if (e.name !== "AbortError") setStatus(/failed to fetch|load failed|network/i.test(msg) ? "Max couldn't reach his server. Check your internet and try again." : msg);
+    if (e.name !== "AbortError") { const shown = /failed to fetch|load failed|network/i.test(msg) ? "Max couldn't reach his server. Check your internet and try again." : msg; setStatus(shown); opts.onError?.(shown); }
   }
   if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim() });
   busy = false; ctl = null;
   renderThread(); saveChats(current); updateSend();
+  return answer.trim();
 }
+
+/* ---------- voice chat ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+const V = { open: false, muted: false, state: "off", rec: null, spoken: 0, poll: 0, turn: 0 };
+const vEl = $("voice"), orb = $("orb"), vState = $("vstate"), vCap = $("vcaption");
+function vSet(state, label) { V.state = state; orb.dataset.state = state; vState.textContent = label; }
+function vCaption(text, you) { vCap.textContent = text; vCap.classList.toggle("you", !!you); }
+const speakable = (t) => t.replace(/```[\s\S]*?```/g, " code example. ").replace(/[*_`#>]/g, "").replace(/^\s*[-•]\s+/gm, "").replace(/\(Score: (\d+)\/(\d+)\)/g, "Score: $1 out of $2.").replace(/\s+/g, " ").trim();
+function vSay(text) {
+  text = speakable(text); if (!text || !synth) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = navigator.language || "en-US"; u.rate = 1.02;
+  synth.speak(u);
+}
+function vListen() {
+  if (!V.open) return;
+  if (V.muted) return vSet("muted", "Mic is muted");
+  vSet("listening", "Listening…");
+  if (!SR) return;
+  try { V.rec?.abort(); } catch {}
+  const rec = V.rec = new SR();
+  rec.lang = navigator.language || "en-US"; rec.interimResults = true; rec.continuous = false;
+  let finalText = "";
+  rec.onresult = (e) => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) (e.results[i].isFinal ? (finalText += e.results[i][0].transcript) : (interim += e.results[i][0].transcript));
+    vCaption(finalText + interim, true);
+  };
+  rec.onerror = (e) => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") { V.muted = true; $("vmute").setAttribute("aria-pressed", "true"); vSet("muted", "Max can't use the microphone"); vCaption("Allow the microphone for this site in your browser settings, then tap the mic button."); }
+  };
+  rec.onend = () => {
+    if (V.rec !== rec || !V.open || V.state !== "listening") return;
+    if (finalText.trim()) vAsk(finalText.trim()); else setTimeout(vListen, 250);
+  };
+  try { rec.start(); } catch { setTimeout(vListen, 600); }
+}
+async function vAsk(text) {
+  const turn = ++V.turn;
+  vSet("thinking", "Thinking…"); V.spoken = 0; clearInterval(V.poll);
+  let failed = "";
+  const answer = await send(text, {
+    voice: true,
+    onError: (m) => { failed = m; },
+    onText: (full) => {
+      if (turn !== V.turn || !V.open) return;
+      const rest = full.slice(V.spoken), m = rest.match(/^[\s\S]*[.!?:\n](?=\s)/);
+      if (!m) return;
+      if (V.state !== "speaking") vSet("speaking", "Max is talking");
+      vSay(m[0]); V.spoken += m[0].length; vCaption(speakable(full));
+    },
+  });
+  if (turn !== V.turn || !V.open) return;
+  if (!answer) { vCaption(failed || "Max didn't answer. Try again."); return setTimeout(() => turn === V.turn && vListen(), 2500); }
+  if (V.state !== "speaking") vSet("speaking", "Max is talking");
+  vSay(answer.slice(V.spoken)); vCaption(speakable(answer));
+  if (!synth) return vListen();
+  const started = Date.now();
+  V.poll = setInterval(() => {
+    if (turn !== V.turn || !V.open) return clearInterval(V.poll);
+    if ((!synth.speaking && !synth.pending && Date.now() - started > 400) || Date.now() - started > 120000) { clearInterval(V.poll); vCaption(""); vListen(); }
+  }, 250);
+}
+function vInterrupt() { V.turn++; clearInterval(V.poll); synth?.cancel(); if (busy) ctl?.abort(); }
+function vOpen() {
+  if (busy) return;
+  V.open = true; V.muted = false; $("vmute").setAttribute("aria-pressed", "false"); $("vmute").innerHTML = svg("mic");
+  vEl.hidden = false; vCaption("");
+  if (synth) { synth.cancel(); const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } // lets the phone speak later
+  if (!SR) { vSet("off", "This browser can't listen"); vCaption("Voice chat needs speech recognition. Try Safari on iPhone, or Chrome on a computer or Android."); return; }
+  vListen();
+}
+function vClose() {
+  V.open = false; vInterrupt(); try { V.rec?.abort(); } catch {} V.rec = null; vEl.hidden = true; input.focus();
+}
+$("voiceBtn").onclick = vOpen;
+$("vclose").onclick = vClose;
+$("vmute").onclick = () => {
+  V.muted = !V.muted; $("vmute").setAttribute("aria-pressed", String(V.muted)); $("vmute").innerHTML = svg(V.muted ? "micoff" : "mic");
+  if (V.muted) { try { V.rec?.abort(); } catch {} if (V.state === "listening") vSet("muted", "Mic is muted"); }
+  else if (V.state === "muted" || V.state === "listening") vListen();
+};
+orb.onclick = () => { if (V.state === "speaking" || V.state === "thinking") { vInterrupt(); vCaption(""); vListen(); } };
+document.addEventListener("visibilitychange", () => { if (document.hidden && V.open) vClose(); });
 
 /* ---------- controls ---------- */
 function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
@@ -600,7 +726,7 @@ $("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexO
 const pop = $("popover"), setBtn = $("settingsBtn");
 setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
 document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== setBtn) { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); } });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { pop.hidden = true; shell.classList.remove("side-open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
 $("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
 $("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
 

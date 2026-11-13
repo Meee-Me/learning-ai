@@ -11,6 +11,8 @@ Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
 - Chat layout with a sidebar of past lessons, new lesson, copy and try-again buttons.
 - **Attach files** with the paperclip, drag and drop, or paste: PDF, Word (.docx), text, Markdown, CSV,
   code files, and pictures of text (read with OCR).
+- **Voice chat**: tap the waveform button to talk with Max out loud. Uses the browser's own speech
+  recognition and voice, so it needs Safari on iPhone, or Chrome on a computer or Android.
 - **Sign in with Deluxe Main** to keep lessons and settings in your Deluxe account on every device.
 
 ## How it works

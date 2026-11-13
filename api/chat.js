@@ -25,6 +25,8 @@ const system = (subject, level, mode) => `You are Max, a warm, patient, encourag
 Mode: ${MODES[mode]}
 Rules: keep replies short (usually under 150 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Use simple Markdown only (bold, lists, \`code\`, code blocks); no tables or LaTeX, write math in plain text like 3x + 5 = 20. If the student attached a file, its text is in their message between <file> tags: use it to teach them. If you are not sure about a fact, say so.`;
 
+const VOICE = "\nThis turn is a SPOKEN conversation: your reply will be read aloud. Answer in 1 to 3 short, natural sentences. No Markdown, no lists, no emoji, no code blocks. Say math in words.";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
 
@@ -56,7 +58,7 @@ export default async function handler(req, res) {
   const upstream = await fetch(URL_, {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, stream: true, max_tokens: 1500, messages: [{ role: "system", content: system(subject, level, mode) }, ...messages] }),
+    body: JSON.stringify({ model: MODEL, stream: true, max_tokens: 1500, messages: [{ role: "system", content: system(subject, level, mode) + (body.voice ? VOICE : "") }, ...messages] }),
   }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
 
   if (!upstream.ok || !upstream.body) {
