@@ -21,6 +21,10 @@ GitHub) then rebuilds it.
 3. **Run** previews web pages. **Publish** sends one file; **Publish all** sends every changed file
    as a single update. Both take two taps and warn when a file got much shorter.
 
+Optional: paste a **Vercel** or **Netlify** token in the same dialog. After a publish Max then
+watches the rebuild, says when the change is live (with a link), and if the build fails shows the
+error with an **Ask Max to fix it** button. Max only reads from Vercel and Netlify.
+
 The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
 Max reads up to 30,000 characters of files at a time, so big files can't be edited.
 

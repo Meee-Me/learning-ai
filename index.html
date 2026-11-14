@@ -136,6 +136,15 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .dlg { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; }
 .dlg h2 { margin: 0; font: 600 20px var(--font-display); }
 .dlg p { margin: 0; font-size: 14px; }
+.dlg h3 { margin: 6px 0 -4px; font: 600 15px var(--font-display); display: flex; align-items: center; gap: 7px; }
+.dlg h3 span { font: 11.5px var(--font-body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.deploy { padding: 6px 12px; font-size: 12.5px; border-top: 1px solid var(--line); line-height: 1.9; }
+.puball .deploy { border: 0; padding: 0; flex-basis: 100%; }
+.deploy .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--chalk); margin-right: 7px; }
+.deploy.ok .dot { background: #2fa36b; } .deploy.bad .dot { background: var(--danger); }
+.deploy.wait .dot { animation: pulse 1s infinite ease-in-out; }
+.deploy pre { margin: 4px 0 0; line-height: 1.5; max-height: 140px; overflow: auto; font: 11.5px var(--font-mono); white-space: pre-wrap; color: var(--danger); }
+.deploy button { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; }
 .dlg .hint, .dlg details { font-size: 12.5px; color: var(--muted); }
 .dlg details ol { margin: 6px 0 0; padding-left: 18px; }
 .dlg label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
@@ -341,7 +350,8 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
     <div class="modal" id="siteDlg" hidden>
       <form class="dlg" id="siteForm">
         <h2>Connect a website</h2>
-        <p>Max can edit a website that lives in a GitHub repository. When he publishes a change, Vercel rebuilds the site by itself.</p>
+        <p>Max edits the website's files on <b>GitHub</b>. Your host (<b>Vercel</b> or <b>Netlify</b>) then rebuilds the site by itself. Connect the host too and Max watches the rebuild and tells you when it's live or what went wrong.</p>
+        <h3><img src="https://cdn.simpleicons.org/github/888" alt="" width="16" height="16">GitHub <span>needed</span></h3>
         <label>GitHub repository
           <input id="siteRepo" type="text" placeholder="owner/name, e.g. Meee-Me/my-site" autocomplete="off" autocapitalize="off" spellcheck="false" required>
         </label>
@@ -356,7 +366,29 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <li>Generate it, copy it, and paste it here.</li>
           </ol>
         </details>
-        <p class="hint">The token stays in this browser only. It is sent to GitHub and nowhere else. The files you let Max see are sent to his AI service, so don't connect a repository with secrets in it.</p>
+        <h3><img src="https://cdn.simpleicons.org/vercel/888" alt="" width="16" height="16">Vercel <span>optional</span></h3>
+        <label>Vercel token
+          <input id="vercelToken" type="password" placeholder="Leave empty if the site isn't on Vercel" autocomplete="off">
+        </label>
+        <details><summary>How do I get a Vercel token?</summary>
+          <ol>
+            <li>On vercel.com tap your picture → <b>Account Settings → Tokens</b>.</li>
+            <li>Tap <b>Create</b>, name it "Max", choose the team your site is in, and pick an expiry date.</li>
+            <li>Copy the token and paste it here.</li>
+          </ol>
+        </details>
+        <h3><img src="https://cdn.simpleicons.org/netlify/888" alt="" width="16" height="16">Netlify <span>optional</span></h3>
+        <label>Netlify token
+          <input id="netlifyToken" type="password" placeholder="Leave empty if the site isn't on Netlify" autocomplete="off">
+        </label>
+        <details><summary>How do I get a Netlify token?</summary>
+          <ol>
+            <li>On app.netlify.com tap your picture → <b>User settings → Applications</b>.</li>
+            <li>Under <b>Personal access tokens</b> tap <b>New access token</b>, name it "Max".</li>
+            <li>Copy the token and paste it here.</li>
+          </ol>
+        </details>
+        <p class="hint">Tokens stay in this browser only. Each one is sent only to its own service (GitHub, Vercel or Netlify), never to Max's server or his AI. Max only reads from Vercel and Netlify; he changes files on GitHub. The files Max opens are sent to his AI service, so don't connect a repository with secrets in it.</p>
         <p class="status" id="siteErr" hidden></p>
         <div class="dlgrow">
           <button class="btn ghost danger" id="siteOff" type="button" hidden>Disconnect</button>
@@ -823,12 +855,13 @@ function renderSite() {
 }
 function openSiteDlg() {
   $("siteRepo").value = site?.repo || ""; $("siteToken").value = site?.token || "";
+  $("vercelToken").value = hosts.vercel?.token || ""; $("netlifyToken").value = hosts.netlify?.token || "";
   $("siteOff").hidden = !site; $("siteGo").textContent = site ? "Reconnect" : "Connect";
   $("siteErr").hidden = true; $("siteDlg").hidden = false; closeSideOnPhone();
 }
 $("siteBtn").onclick = openSiteDlg;
 $("siteCancel").onclick = () => { $("siteDlg").hidden = true; };
-$("siteOff").onclick = () => { site = null; saveSite(); if (prefs.mode === "site") setMode("code"); renderSite(); $("siteDlg").hidden = true; };
+$("siteOff").onclick = () => { site = null; saveSite(); hosts = {}; saveHosts(); if (prefs.mode === "site") setMode("code"); renderSite(); $("siteDlg").hidden = true; };
 $("siteForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const repo = $("siteRepo").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, ""), token = $("siteToken").value.trim();
@@ -841,6 +874,16 @@ $("siteForm").addEventListener("submit", async (e) => {
     if (info.permissions && !info.permissions.push) throw new Error("This token can read the repository but not change it. Set Contents to Read and write.");
     site.branch = info.default_branch || "main";
     await siteLoadTree();
+    const vt = $("vercelToken").value.trim(), nt = $("netlifyToken").value.trim(), next = {};
+    if (vt) { const r = await fetch("https://api.vercel.com/v2/user", { headers: { Authorization: "Bearer " + vt } }).catch(() => null);
+      if (!r) throw new Error("Couldn't reach Vercel to check the token. Try again, or leave the Vercel box empty.");
+      if (!r.ok) throw new Error("Vercel didn't accept that token. Make a new one, or leave the Vercel box empty.");
+      next.vercel = { token: vt }; }
+    if (nt) { const r = await fetch("https://api.netlify.com/api/v1/user", { headers: { Authorization: "Bearer " + nt } }).catch(() => null);
+      if (!r) throw new Error("Couldn't reach Netlify to check the token. Try again, or leave the Netlify box empty.");
+      if (!r.ok) throw new Error("Netlify didn't accept that token. Make a new one, or leave the Netlify box empty.");
+      next.netlify = { token: nt }; }
+    hosts = next; saveHosts();
     $("siteDlg").hidden = true; setMode("site"); renderSite();
   } catch (e2) { site = before; err(e2.message === "Failed to fetch" || e2.message === "Load failed" ? "Couldn't reach GitHub. Check your internet." : e2.message); }
   $("siteGo").disabled = false;
@@ -855,6 +898,83 @@ $("siteAdd").onclick = async () => { $("pickFilter").value = ""; $("pickDlg").hi
 $("pickFilter").oninput = renderPick;
 $("pickList").addEventListener("change", (e) => { const v = e.target.value; site.picked = e.target.checked ? [...new Set([...site.picked, v])] : site.picked.filter((p) => p !== v); saveSite(); });
 $("pickDone").onclick = () => { $("pickDlg").hidden = true; renderSite(); };
+/* Vercel and Netlify: watch the rebuild that a publish starts (read-only). */
+let hosts = store.get("max.hosts", {}); // { vercel: { token, teamId }, netlify: { token, siteId } }
+const saveHosts = () => { try { localStorage.setItem("max.hosts", JSON.stringify(hosts)); } catch {} };
+async function hostJSON(url, token) {
+  const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+  if (!r.ok) { const e = new Error("answered " + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+async function vercelFind(sha) {
+  const v = hosts.vercel, api = "https://api.vercel.com";
+  let scopes = v.teamId !== undefined ? [v.teamId] : null;
+  if (!scopes) { const t = await hostJSON(api + "/v2/teams?limit=50", v.token).catch(() => ({ teams: [] })); scopes = ["", ...(t.teams || []).map((x) => x.id)]; }
+  for (const team of scopes) {
+    const q = team ? "&teamId=" + encodeURIComponent(team) : "";
+    const d = await hostJSON(`${api}/v6/deployments?limit=20${q}`, v.token).catch(() => null);
+    const hit = d?.deployments?.find((x) => x.meta?.githubCommitSha === sha);
+    if (!hit) continue;
+    if (v.teamId !== team) { v.teamId = team; saveHosts(); }
+    const state = hit.state || hit.readyState;
+    const out = { host: "Vercel", state: state === "READY" ? "ok" : state === "ERROR" || state === "CANCELED" ? "bad" : "wait", url: hit.url ? "https://" + hit.url : "", page: hit.inspectorUrl || "" };
+    if (out.state === "bad") {
+      try {
+        const ev = await hostJSON(`${api}/v3/deployments/${hit.uid}/events?builds=1&limit=-1${q}`, v.token);
+        out.error = (Array.isArray(ev) ? ev : []).map((x) => x.text || x.payload?.text || "").filter(Boolean).slice(-25).join("\n").slice(-2500);
+      } catch {}
+      out.error ||= hit.errorMessage || "The build failed.";
+    }
+    return out;
+  }
+  return null;
+}
+async function netlifyFind(sha) {
+  const n = hosts.netlify, api = "https://api.netlify.com/api/v1";
+  if (!n.siteId || n.repo !== site.repo) {
+    const sites = await hostJSON(api + "/sites?per_page=100", n.token);
+    const hit = sites.find((x) => (x.build_settings?.repo_path || x.build_settings?.repo_url || "").toLowerCase().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "") === site.repo.toLowerCase());
+    if (!hit) return null;
+    n.siteId = hit.id; n.repo = site.repo; saveHosts();
+  }
+  const deploys = await hostJSON(`${api}/sites/${n.siteId}/deploys?per_page=10`, n.token);
+  const d = deploys.find((x) => x.commit_ref === sha);
+  if (!d) return null;
+  return { host: "Netlify", state: d.state === "ready" ? "ok" : d.state === "error" ? "bad" : "wait", url: d.context === "production" ? d.ssl_url || d.deploy_ssl_url : d.deploy_ssl_url, page: d.admin_url ? `${d.admin_url}/deploys/${d.id}` : "", error: d.error_message || "The build failed." };
+}
+function watchDeploy(sha, box) {
+  const jobs = [hosts.vercel?.token && ["Vercel", vercelFind], hosts.netlify?.token && ["Netlify", netlifyFind]].filter(Boolean);
+  if (!sha || !jobs.length) return;
+  for (const [name, find] of jobs) {
+    const el = document.createElement("div"); el.className = "deploy wait"; box.appendChild(el);
+    const show = (cls, html) => { el.className = "deploy " + cls; el.innerHTML = '<span class="dot"></span>' + html; };
+    show("wait", `${name}: waiting for the rebuild to start…`);
+    const started = Date.now(); let found = false;
+    const tick = async () => {
+      if (!el.isConnected) return;
+      let d = null, failed = "";
+      try { d = await find(sha); } catch (e) { failed = e.status === 401 || e.status === 403 ? `${name} didn't accept the token. Connect again with a new one.` : e.message === "Failed to fetch" || e.message === "Load failed" ? `Couldn't reach ${name}.` : `${name} ${e.message}.`; }
+      if (failed && !/reach/.test(failed)) return show("bad", esc(failed));
+      const link = (u, t) => (u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">${t}</a>` : "");
+      if (d) found = true;
+      if (d?.state === "ok") return show("ok", `${name}: the change is live.${link(d.url, "Open the site")}`);
+      if (d?.state === "bad") {
+        show("bad", `${name}: the rebuild failed, so the live site did not change.${link(d.page, "Details")} <button type="button" data-fix="1">Ask Max to fix it</button><pre></pre>`);
+        el.querySelector("pre").textContent = d.error;
+        el.querySelector("button").onclick = () => { input.value = `The ${name} build failed after your change. Find the cause and fix it. This is the error:\n${d.error}`; autosize(); updateSend(); submit(input.value); };
+        return;
+      }
+      const secs = (Date.now() - started) / 1000;
+      if (!found && secs > 90) return show("", `${name}: no rebuild found for this change. The site may be on another account or host.`);
+      if (secs > 420) return show("", `${name}: still building after 7 minutes. Check it on ${name}.${link(d?.page, "Open")}`);
+      show("wait", d ? `${name}: building…${link(d.page, "Watch")}` : `${name}: waiting for the rebuild to start…`);
+      setTimeout(tick, 6000);
+    };
+    setTimeout(tick, 4000);
+  }
+}
+const hostName = () => [hosts.vercel?.token && "Vercel", hosts.netlify?.token && "Netlify"].filter(Boolean).join(" and ");
+
 // Max asks for files with a line like "READ: index.html, css/style.css".
 function parseReads(answer) {
   if (/```file:/i.test(answer)) return [];
@@ -916,7 +1036,8 @@ async function publishAll(btn, msgEl) {
     const commit = await post("commits", { message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), tree: tree.sha, parents: [head] });
     await post(`refs/heads/${ghPath(site.branch)}`, { sha: commit.sha }, "PATCH");
     btn.textContent = "Published ✓"; btn.classList.remove("warn"); note.classList.remove("err");
-    note.innerHTML = `Published ${list.length} files to ${esc(site.repo)}. Vercel usually updates the live site in about a minute. ` + (commit.html_url ? `<a href="${esc(commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    note.innerHTML = `Published ${list.length} files to ${esc(site.repo)}. ${hostName() ? "" : "Your host usually updates the live site in about a minute. "}` + (commit.html_url ? `<a href="${esc(commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    watchDeploy(commit.sha, btn.parentElement);
     msgEl.querySelectorAll('[data-cb="publish"]').forEach((b) => { b.disabled = true; b.textContent = "Published ✓"; });
   } catch (e) { say(e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message, true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Publish all"; }
 }
@@ -946,7 +1067,8 @@ async function publish(btn, block, code) {
     const res = await (await gh(`/repos/${site.repo}/contents/${ghPath(path)}`, { method: "PUT", body: JSON.stringify({ message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), content: btoa(bin), branch: site.branch, ...(btn.dataset.sha ? { sha: btn.dataset.sha } : {}) }) })).json();
     btn.textContent = "Published ✓"; btn.classList.remove("warn");
     note.classList.remove("err");
-    note.innerHTML = `Published to ${esc(site.repo)}. Vercel usually updates the live site in about a minute. ` + (res.commit?.html_url ? `<a href="${esc(res.commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    note.innerHTML = `Published to ${esc(site.repo)}. ${hostName() ? "" : "Your host usually updates the live site in about a minute. "}` + (res.commit?.html_url ? `<a href="${esc(res.commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    watchDeploy(res.commit?.sha, block);
     if (!site.tree.includes(path)) { site.tree.push(path); saveSite(); }
   } catch (e) { say(e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message, true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Publish"; }
 }
