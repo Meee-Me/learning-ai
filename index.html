@@ -137,7 +137,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .dlg h2 { margin: 0; font: 600 20px var(--font-display); }
 .dlg p { margin: 0; font-size: 14px; }
 .btn.big { display: block; width: 100%; padding: 12px 16px; font-size: 16px; text-align: center; text-decoration: none; }
-#ghOauth, #ghDevice, #ghRepos { display: flex; flex-direction: column; gap: 10px; }
+.setup { margin: 0; padding-left: 20px; font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; }
+.copyline { display: block; font: 12.5px var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-top: 4px; user-select: all; overflow-wrap: anywhere; }
+#ghOauth, #ghDevice, #ghRepos, #ghSetup { display: flex; flex-direction: column; gap: 10px; }
 .devcode { font: 600 30px var(--font-mono); letter-spacing: .12em; text-align: center; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--bg); user-select: all; }
 #tokenWay > summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
 #tokenWay[open] { display: flex; flex-direction: column; gap: 12px; }
@@ -363,6 +365,17 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
         <p>Max edits the website's files on <b>GitHub</b>. Your host (Vercel, Netlify and others) then rebuilds the site by itself, and Max tells you when the change is live.</p>
         <div id="ghOauth" hidden>
           <button class="btn big" id="ghConnect" type="button">Connect GitHub</button>
+          <div id="ghSetup" hidden>
+            <p><b>One-time setup.</b> GitHub only shows its Authorize screen for apps it knows, so Max has to be registered with GitHub once. After this, connecting is just a tap.</p>
+            <ol class="setup">
+              <li>Open <a href="https://github.com/settings/applications/new" target="_blank" rel="noopener">GitHub → New OAuth App</a>.</li>
+              <li>Name: <b>Max Tutor</b>. Put this address in both <b>Homepage URL</b> and <b>Authorization callback URL</b>:<span class="copyline" id="ghOrigin"></span></li>
+              <li>Tick <b>Enable Device Flow</b>, then tap <b>Register application</b>.</li>
+              <li>Copy the <b>Client ID</b> it shows (it starts with Ov23) and paste it here. Don't make a client secret.</li>
+            </ol>
+            <input id="ghClientId" type="text" placeholder="Client ID, e.g. Ov23li…" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <button class="btn big" id="ghSetupGo" type="button">Continue</button>
+          </div>
           <div id="ghDevice" hidden>
             <p>Tap the button to copy this code, then paste it on GitHub and approve:</p>
             <div class="devcode" id="ghCode"></div>
@@ -891,7 +904,7 @@ function openSiteDlg() {
   $("siteRepo").value = site?.repo || ""; $("siteToken").value = site?.token || "";
   $("vercelToken").value = hosts.vercel?.token || ""; $("netlifyToken").value = hosts.netlify?.token || "";
   $("siteOff").hidden = !site;
-  $("ghOauth").hidden = !ghOauth; $("tokenWay").open = !ghOauth; ghReset();
+  $("ghOauth").hidden = false; $("tokenWay").open = false; ghReset();
   $("ghConnect").textContent = site ? `Connected to ${site.repo}. Connect another` : "Connect GitHub";
   $("siteErr").hidden = true; $("siteDlg").hidden = false; closeSideOnPhone();
 }
@@ -900,16 +913,24 @@ $("siteCancel").onclick = () => { $("siteDlg").hidden = true; ghReset(); };
 
 /* Connect GitHub without a token: GitHub shows a code, you approve, Max gets access. */
 let ghOauth = false, ghRun = 0, ghRepoAll = [];
+let ghClient = store.get("max.ghClient", ""); // the app's public Client ID, when Max's server doesn't have one built in
 fetch("/api/github").then((r) => r.json()).then((j) => { ghOauth = !!j.enabled; }).catch(() => {});
-function ghReset() { ghRun++; pendingToken = ""; $("ghConnect").hidden = false; $("ghDevice").hidden = true; $("ghRepos").hidden = true; }
-const ghApi = (body) => fetch("/api/github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+function ghReset() { ghRun++; pendingToken = ""; $("ghConnect").hidden = false; $("ghDevice").hidden = true; $("ghRepos").hidden = true; $("ghSetup").hidden = true; }
+const ghApi = (body) => fetch("/api/github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, ...(ghOauth ? {} : { client_id: ghClient }) }) }).then((r) => r.json());
+function ghShowSetup() { $("ghConnect").hidden = true; $("ghSetup").hidden = false; $("ghOrigin").textContent = location.origin; $("ghClientId").value = ghClient; }
+$("ghSetupGo").onclick = () => {
+  const id = $("ghClientId").value.trim();
+  if (!/^[A-Za-z0-9.]{16,40}$/.test(id)) { $("siteErr").textContent = "Paste the Client ID from GitHub. It starts with Ov23 and has letters and numbers only."; $("siteErr").hidden = false; return; }
+  ghClient = id; store.set("max.ghClient", id); $("ghSetup").hidden = true; $("ghConnect").hidden = false; $("ghConnect").click();
+};
 $("ghConnect").onclick = async () => {
+  if (!ghOauth && !ghClient) { $("siteErr").hidden = true; return ghShowSetup(); }
   const run = ++ghRun, err = (m) => { $("siteErr").textContent = m; $("siteErr").hidden = false; };
   $("siteErr").hidden = true; $("ghConnect").disabled = true;
   let d; try { d = await ghApi({ action: "start" }); } catch { d = { error: "Couldn't reach Max's server. Check your internet." }; }
   $("ghConnect").disabled = false;
   if (run !== ghRun) return;
-  if (!d.user_code) return err(d.error || "GitHub sign-in didn't start. Try again.");
+  if (!d.user_code) { if (!ghOauth) ghShowSetup(); return err(d.error || "GitHub sign-in didn't start. Try again."); }
   $("ghConnect").hidden = true; $("ghDevice").hidden = false; $("ghCode").textContent = d.user_code; $("ghOpen").href = d.verification_uri || "https://github.com/login/device";
   $("ghOpen").onclick = () => { navigator.clipboard?.writeText(d.user_code).catch(() => {}); };
   $("ghWait").textContent = "Waiting for you to approve on GitHub…";

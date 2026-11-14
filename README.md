@@ -35,12 +35,12 @@ After a publish Max follows the rebuild through GitHub (Vercel, Netlify and othe
 there), says when the change is live, and offers **Ask Max to fix it** if the build fails. Vercel or
 Netlify tokens are only needed to read full build error logs.
 
-### One-time setup for Connect GitHub (site owner)
+### One-time setup for Connect GitHub
 
-1. On GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**. Name "Max Tutor",
-   homepage and callback URL both the site's address. Tick **Enable Device Flow**. Register.
-2. Copy the **Client ID** (it is public, not a secret) into `GITHUB_CLIENT_ID` in Vercel's
-   Environment Variables, or into `CLIENT_ID` in `api/github.js`.
+The first time you tap **Connect GitHub**, Max walks you through registering him with GitHub
+(a GitHub OAuth app with **Enable Device Flow** ticked) and asks for its **Client ID**. The Client ID
+is public, not a secret. It is remembered in that browser; to switch the button on for everyone, put
+it in `GITHUB_CLIENT_ID` in Vercel's Environment Variables.
 
 The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
 Max reads up to 30,000 characters of files at a time, so big files can't be edited.
