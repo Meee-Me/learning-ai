@@ -8,6 +8,20 @@ Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
 - **Code**: writes complete, working code. Web pages and JavaScript get a **Run** button that runs
   them right in the page (in a sandbox); every code block has a Copy button.
 
+## Edit a website
+
+Max can change a website that lives in a GitHub repository; Vercel (or any host that deploys from
+GitHub) then rebuilds it.
+
+1. Tap **Connect a website** in the sidebar. Enter the repository (`owner/name`) and a GitHub
+   fine-grained token limited to that one repository with **Contents: Read and write**.
+2. Pick the files Max may see (**+ File**), then tell him what to change in **Edit website** mode.
+3. Max answers with the complete new file. **Run** previews web pages, **Publish** (two taps, with a
+   size check) commits it to the repository's main branch.
+
+The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
+Max reads up to 30,000 characters of files at a time, so big files can't be edited.
+
 ## Features
 
 - Chat layout with a sidebar of past lessons, new lesson, copy and try-again buttons.

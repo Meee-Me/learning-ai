@@ -18,6 +18,7 @@ const MODES = {
   teach: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding.",
   quiz: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3).",
   code: "CODE",
+  site: "SITE",
   hint: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work.",
 };
 const LEVELS = ["Kid (8–11)", "Middle school", "High school", "College", "Adult beginner"];
@@ -31,7 +32,21 @@ When asked to build or fix something, write complete, working, runnable code, no
 - When the student shares broken code, say what the bug is, then give the full corrected code.
 If the student attached a file, its text is in their message between <file> tags.`;
 
-const system = (subject, level, mode) => mode === "code" ? CODER(subject, level) : `You are Max, a warm, patient, encouraging tutor. Student level: ${level}.${subject ? " Subject: " + subject + "." : ""}
+const SITE = (level, repo, paths) => `You are Max, a friendly tutor and skilled programmer. You are editing the student's own website, which lives in the GitHub repository ${repo}. Student level: ${level}.
+Files in the repository:
+${paths.join("\n") || "(unknown)"}
+The current contents of the files the student picked are in their message between <file name="PATH"> tags.
+
+How to make a change:
+- First say in one or two short sentences what you will change.
+- Then give the COMPLETE new contents of each file you change, each in its own fenced code block whose first line is \`\`\`file:PATH (for example \`\`\`file:index.html). The block replaces the whole file when the student presses Publish.
+- Never shorten or skip parts. Never write things like "rest of the file unchanged" or "...". Copy every unchanged line exactly as it is.
+- Change only what the student asked for. Keep the existing style, names and structure.
+- To add a new file, use the same block with its new path.
+- If you need a file whose contents you can't see, don't guess: ask the student to add it with the + File button, naming its path.
+- If the student only asks a question about the site, just answer it without any file block.`;
+
+const system = (subject, level, mode, site) => mode === "site" && site ? SITE(level, site.repo, site.paths) : mode === "code" || mode === "site" ? CODER(subject, level) : `You are Max, a warm, patient, encouraging tutor. Student level: ${level}.${subject ? " Subject: " + subject + "." : ""}
 Mode: ${MODES[mode]}
 Rules: keep replies short (usually under 150 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Use simple Markdown only (bold, lists, \`code\`, code blocks); no tables or LaTeX, write math in plain text like 3x + 5 = 20. If the student attached a file, its text is in their message between <file> tags: use it to teach them. If you are not sure about a fact, say so.`;
 
@@ -44,7 +59,10 @@ export default async function handler(req, res) {
   const mode = MODES[body.mode] ? body.mode : "teach";
   const level = LEVELS.includes(body.level) ? body.level : "High school";
   const subject = String(body.subject || "").slice(0, 80);
-  let budget = GATEWAY ? 120000 : 24000; // characters of conversation we'll send, newest first
+  const site = body.site && /^[\w.-]+\/[\w.-]+$/.test(String(body.site.repo || ""))
+    ? { repo: String(body.site.repo), paths: (Array.isArray(body.site.paths) ? body.site.paths : []).slice(0, 150).map((x) => String(x).slice(0, 200).replace(/[\r\n`]/g, "")) }
+    : null;
+  let budget = GATEWAY ? 120000 : mode === "site" ? 60000 : 24000; // characters of conversation we'll send, newest first
   const messages = [];
   for (const m of (Array.isArray(body.messages) ? body.messages : []).slice(-20).reverse()) {
     if ((m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content.trim()) continue;
@@ -68,10 +86,10 @@ export default async function handler(req, res) {
   const ask = (model) => fetch(URL_, {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode) + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "site" ? 12000 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
   }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
   // Code needs the stronger model, not the fast one.
-  let upstream = await ask(FREE && mode === "code" && !process.env.MAX_MODEL ? "openai" : MODEL);
+  let upstream = await ask(FREE && (mode === "code" || mode === "site") && !process.env.MAX_MODEL ? "openai" : MODEL);
   // The free service's fast model can be missing or busy: fall back to its standard one.
   if (FREE && !upstream.ok && MODEL !== "openai") upstream = await ask("openai");
 

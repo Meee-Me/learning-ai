@@ -125,6 +125,37 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .codehead button { border: 0; background: none; font: 600 12px var(--font-body); color: var(--ink); padding: 4px 9px; border-radius: 6px; cursor: pointer; }
 .codehead button:hover { background: var(--surface); }
 .codehead button[data-cb="run"] { background: var(--accent); color: var(--accent-ink); }
+.sitebtn { font-weight: 600; font-size: 14px; }
+.sitebtn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sitebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.sitelabel { font-weight: 700; }
+.sitebar .chip { padding: 3px 4px 3px 9px; border-radius: 999px; font: 12px var(--font-mono); max-width: 200px; }
+.sitebar .chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.addfile { border: 1px dashed var(--line); background: none; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; color: var(--accent); }
+.modal { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / .45); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
+.dlg { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; }
+.dlg h2 { margin: 0; font: 600 20px var(--font-display); }
+.dlg p { margin: 0; font-size: 14px; }
+.dlg .hint, .dlg details { font-size: 12.5px; color: var(--muted); }
+.dlg details ol { margin: 6px 0 0; padding-left: 18px; }
+.dlg label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.dlg input { font: 15px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; width: 100%; }
+.dlgrow { display: flex; gap: 8px; align-items: center; }
+.dlgrow .grow { flex: 1; }
+.btn { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; border-radius: 10px; padding: 9px 16px; cursor: pointer; }
+.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: .5; }
+.picklist { overflow-y: auto; max-height: 46vh; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; }
+.picklist label { flex-direction: row; align-items: center; gap: 9px; padding: 8px 10px; font: 13px var(--font-mono); color: var(--ink); border-bottom: 1px solid var(--line); cursor: pointer; overflow-wrap: anywhere; }
+.picklist label:last-child { border-bottom: 0; }
+.picklist input { width: auto; }
+.picklist .none { padding: 12px; color: var(--muted); font-size: 13px; }
+.codehead button[data-cb="publish"] { background: var(--ink); color: var(--bg); }
+.codehead button[data-cb="publish"].warn { background: var(--danger); color: var(--surface); }
+.codehead button:disabled { opacity: .6; cursor: default; }
+.pubnote { padding: 6px 12px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
+.pubnote.err { color: var(--danger); }
 .runner { position: absolute; inset: 0; z-index: 26; background: var(--bg); display: flex; flex-direction: column; }
 .runbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 600; }
 .runbar .grow { flex: 1; }
@@ -209,6 +240,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
   <symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4"/></symbol>
   <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
   <symbol id="i-micoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v2a3 3 0 0 0 4.6 2.5M15 10V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11 5.7M19 11a7 7 0 0 1-.6 2.8M12 18v3M4 4l16 16"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.500 0 18M12 3c-3 3.500-3 14.500 0 18"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
@@ -225,6 +257,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
       <button class="iconbtn close-side" id="closeSide" type="button" aria-label="Hide sidebar"><svg><use href="#i-side"/></svg></button>
     </div>
     <button class="newchat" id="newChat" type="button"><svg><use href="#i-plus"/></svg>New lesson</button>
+    <button class="newchat sitebtn" id="siteBtn" type="button"><svg><use href="#i-globe"/></svg><span id="siteBtnText">Connect a website</span></button>
     <div class="side-label">Recent</div>
     <div class="history" id="history"></div>
     <div class="side-foot" id="sideFoot">Chats are saved only in this browser. Sign in with Deluxe Main to keep them on every device.</div>
@@ -264,6 +297,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <button type="button" data-mode="quiz" aria-pressed="false">Quiz me</button>
             <button type="button" data-mode="hint" aria-pressed="false">Hints only</button>
             <button type="button" data-mode="code" aria-pressed="false">Code</button>
+            <button type="button" data-mode="site" aria-pressed="false">Edit website</button>
           </div>
           <div class="starters" id="starters">
             <button type="button" data-mode="teach">Explain photosynthesis<span>Simply, with an example</span></button>
@@ -279,6 +313,11 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
     <div class="dock">
       <div class="column">
         <form class="composer" id="composer">
+          <div class="sitebar" id="siteBar" hidden>
+            <span class="sitelabel" id="siteLabel"></span>
+            <span class="files" id="siteFiles"></span>
+            <button class="addfile" id="siteAdd" type="button">+ File</button>
+          </div>
           <div class="files" id="pending" hidden></div>
           <textarea id="input" rows="1" placeholder="Ask Max anything…" aria-label="Message Max"></textarea>
           <div class="row">
@@ -292,6 +331,42 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
         </form>
         <p class="status" id="status" hidden></p>
         <p class="foot">Max can make mistakes. Check important answers.</p>
+      </div>
+    </div>
+    <div class="modal" id="siteDlg" hidden>
+      <form class="dlg" id="siteForm">
+        <h2>Connect a website</h2>
+        <p>Max can edit a website that lives in a GitHub repository. When he publishes a change, Vercel rebuilds the site by itself.</p>
+        <label>GitHub repository
+          <input id="siteRepo" type="text" placeholder="owner/name, e.g. Meee-Me/my-site" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <label>GitHub access token
+          <input id="siteToken" type="password" placeholder="github_pat_…" autocomplete="off" required>
+        </label>
+        <details><summary>How do I get a token?</summary>
+          <ol>
+            <li>On github.com open <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b>.</li>
+            <li>Tap <b>Generate new token</b>. Under <b>Repository access</b> pick <b>Only select repositories</b> and choose this one repository.</li>
+            <li>Under <b>Permissions → Repository</b>, set <b>Contents</b> to <b>Read and write</b>.</li>
+            <li>Generate it, copy it, and paste it here.</li>
+          </ol>
+        </details>
+        <p class="hint">The token stays in this browser only. It is sent to GitHub and nowhere else. The files you let Max see are sent to his AI service, so don't connect a repository with secrets in it.</p>
+        <p class="status" id="siteErr" hidden></p>
+        <div class="dlgrow">
+          <button class="btn ghost danger" id="siteOff" type="button" hidden>Disconnect</button>
+          <span class="grow"></span>
+          <button class="btn ghost" id="siteCancel" type="button">Cancel</button>
+          <button class="btn" id="siteGo" type="submit">Connect</button>
+        </div>
+      </form>
+    </div>
+    <div class="modal" id="pickDlg" hidden>
+      <div class="dlg">
+        <h2>Files Max can see</h2>
+        <input id="pickFilter" type="text" placeholder="Search files…" autocomplete="off" autocapitalize="off">
+        <div class="picklist" id="pickList"></div>
+        <div class="dlgrow"><span class="grow"></span><button class="btn" id="pickDone" type="button">Done</button></div>
       </div>
     </div>
     <section class="runner" id="runner" hidden aria-label="Running Max's code">
@@ -327,6 +402,7 @@ const MODES = {
   teach: { label: "Teach me", rule: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding." },
   quiz:  { label: "Quiz me", rule: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3)." },
   code:  { label: "Code", rule: "CODE. Write complete, working code." },
+  site:  { label: "Edit website", rule: "EDIT WEBSITE." },
   hint:  { label: "Hints only", rule: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work." },
 };
 const systemPrompt = (c) => `You are Max, a warm, patient, encouraging tutor. Student level: ${c.level}.${c.subject ? " Subject: " + c.subject + "." : ""}
@@ -415,11 +491,13 @@ function md(src) {
   const parts = esc(src).split(/```/);
   parts.forEach((part, i) => {
     if (i % 2) {
-      const lang = (part.match(/^([\w+#-]*)\n/) || [])[1] || "", closed = i < parts.length - 1;
+      const info = ((part.match(/^([^\n]*)\n/) || [])[1] || "").trim(), closed = i < parts.length - 1;
+      const path = /^file:/i.test(info) ? info.slice(5).trim().replace(/^\/+/, "") : "";
+      const lang = path ? (/\.html?$/i.test(path) ? "html" : /\.m?js$/i.test(path) ? "js" : "file") : info.split(/\s/)[0];
       const runnable = closed && /^(html|js|javascript)$/i.test(lang);
-      html += `<div class="codeblock" data-lang="${lang.toLowerCase()}"><div class="codehead"><span>${lang || "code"}</span><span class="grow"></span>` +
-        (runnable ? `<button type="button" data-cb="run">▶ Run</button>` : "") + (closed ? `<button type="button" data-cb="copy">Copy</button>` : "") +
-        `</div><pre><code>${part.replace(/^[\w+#-]*\n/, "")}</code></pre></div>`;
+      html += `<div class="codeblock" data-lang="${lang.toLowerCase()}"${path ? ` data-path="${path.replace(/"/g, "")}"` : ""}><div class="codehead"><span>${path || lang || "code"}</span><span class="grow"></span>` +
+        (runnable ? `<button type="button" data-cb="run">▶ Run</button>` : "") + (closed ? `<button type="button" data-cb="copy">Copy</button>` : "") + (closed && path ? `<button type="button" data-cb="publish">Publish</button>` : "") +
+        `</div><pre><code>${part.replace(/^[^\n]*\n/, "")}</code></pre></div>`;
       return;
     }
     let list = null, para = [];
@@ -586,6 +664,7 @@ thread.addEventListener("click", async (e) => {
   if (cb) {
     const block = cb.closest(".codeblock"), code = block.querySelector("code").textContent;
     if (cb.dataset.cb === "run") return runCode(block.dataset.lang, code);
+    if (cb.dataset.cb === "publish") return publish(cb, block, code);
     try { await navigator.clipboard.writeText(code); cb.textContent = "Copied"; setTimeout(() => (cb.textContent = "Copy"), 1500); }
     catch { const r = document.createRange(); r.selectNodeContents(block.querySelector("code")); getSelection().removeAllRanges(); getSelection().addRange(r); }
     return;
@@ -614,15 +693,17 @@ function updateSend() {
   sendBtn.setAttribute("aria-label", busy ? "Stop" : "Send");
 }
 function modelMessages() {
-  return current.messages.slice(-10).map((m) => {
+  const msgs = current.messages.slice(-10), lastUser = msgs.map((m) => m.role).lastIndexOf("user");
+  return msgs.map((m, i) => {
     if (m.role !== "user" || !m.files?.length) return { role: m.role, content: m.content };
-    const docs = m.files.filter((f) => f.text).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
+    // Website files are re-read fresh for every question, so older copies are left out.
+    const docs = m.files.filter((f) => f.text && (f.kind !== "site" || i === lastUser)).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
     return { role: "user", content: `${docs}\n\n${m.content || "Please help me understand this file."}` };
   });
 }
 async function send(text, opts) {
   text = (text || "").trim();
-  const files = pending.filter((f) => f.text).map(({ id, name, size, kind, text, thumb, status, cut }) => ({ id, name, size, kind, text, thumb, status, cut }));
+  const files = [...(opts?.files || []), ...pending.filter((f) => f.text).map(({ id, name, size, kind, text, thumb, status, cut }) => ({ id, name, size, kind, text, thumb, status, cut }))];
   if (busy || (!text && !files.length)) return;
   if (pending.some((f) => !f.error && !f.text)) { setStatus("Wait a moment, Max is still reading your file."); return; }
   chats = [current, ...chats.filter((c) => c !== current)];
@@ -643,7 +724,7 @@ async function respond(opts = {}) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, voice: !!opts.voice }),
+      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, voice: !!opts.voice, site: prefs.mode === "site" && site ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -669,6 +750,122 @@ async function respond(opts = {}) {
   busy = false; ctl = null;
   renderThread(); saveChats(current); updateSend();
   return answer.trim();
+}
+
+/* ---------- edit a website (GitHub) ---------- */
+const SITE_LIMIT = 30000; // characters of files Max can read at once
+let site = store.get("max.site", null); // { repo, token, branch, tree, picked }
+const saveSite = () => { try { site ? localStorage.setItem("max.site", JSON.stringify(site)) : localStorage.removeItem("max.site"); } catch {} };
+const TEXTY = /\.(html?|css|m?js|jsx|ts|tsx|json|md|txt|svg|xml|ya?ml|toml|py|php|rb|go|java|c|cpp|h|vue|svelte|astro|webmanifest)$/i;
+async function gh(path, init = {}) {
+  const r = await fetch("https://api.github.com" + path, { ...init, headers: { Authorization: "Bearer " + site.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(init.headers || {}) } });
+  if (!r.ok) {
+    const why = r.status === 401 ? "GitHub didn't accept the token. Make a new one and connect again."
+      : r.status === 403 ? "The token isn't allowed to do that. It needs Contents: Read and write for this repository."
+      : r.status === 404 ? "GitHub can't find that. Check the repository name and that the token covers it."
+      : r.status === 409 || r.status === 422 ? "The file changed on GitHub in the meantime. Ask Max again." : "GitHub answered " + r.status + ".";
+    const e = new Error(why); e.status = r.status; throw e;
+  }
+  return r;
+}
+const ghPath = (p) => p.split("/").map(encodeURIComponent).join("/");
+async function ghRead(path) { // -> { text, sha } or null when the file doesn't exist
+  try {
+    const j = await (await gh(`/repos/${site.repo}/contents/${ghPath(path)}?ref=${encodeURIComponent(site.branch)}`)).json();
+    if (Array.isArray(j) || j.type !== "file") throw new Error(path + " is a folder, not a file.");
+    const bin = atob((j.content || "").replace(/\n/g, ""));
+    return { sha: j.sha, text: new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))) };
+  } catch (e) { if (e.status === 404) return null; throw e; }
+}
+async function siteLoadTree() {
+  const t = await (await gh(`/repos/${site.repo}/git/trees/${encodeURIComponent(site.branch)}?recursive=1`)).json();
+  site.tree = (t.tree || []).filter((x) => x.type === "blob" && TEXTY.test(x.path) && !/(^|\/)(node_modules|\.git|dist|build|vendor)\//.test(x.path) && !/package-lock\.json$|\.min\./.test(x.path)).map((x) => x.path);
+  site.picked = (site.picked || []).filter((p) => site.tree.includes(p));
+  if (!site.picked.length) { const first = site.tree.find((p) => /^(public\/)?index\.html$/.test(p)); if (first) site.picked = [first]; }
+  saveSite();
+}
+async function siteFilesForSend() {
+  if (!site.picked?.length) throw new Error("Pick at least one file for Max to see (tap + File).");
+  const out = []; let total = 0;
+  for (const path of site.picked) {
+    const f = await ghRead(path);
+    if (!f) continue;
+    total += f.text.length;
+    if (total > SITE_LIMIT) throw new Error(`These files are too big for Max to edit safely (${Math.round(total / 1000)}k characters, limit ${SITE_LIMIT / 1000}k). Pick fewer or smaller files.`);
+    out.push({ id: Math.random().toString(36).slice(2), name: path, size: f.text.length, kind: "site", text: f.text, status: "from " + site.repo });
+  }
+  return out;
+}
+function renderSite() {
+  $("siteBtnText").textContent = site ? site.repo : "Connect a website";
+  $("siteBar").hidden = !(site && prefs.mode === "site");
+  if (!site) return;
+  $("siteLabel").textContent = "Editing " + site.repo + ":";
+  $("siteFiles").innerHTML = (site.picked || []).map((p) => `<span class="chip" data-path="${esc(p)}"><b title="${esc(p)}">${esc(p)}</b><button class="iconbtn x" type="button" aria-label="Remove ${esc(p)}">${svg("x")}</button></span>`).join("") || "no files picked";
+}
+function openSiteDlg() {
+  $("siteRepo").value = site?.repo || ""; $("siteToken").value = site?.token || "";
+  $("siteOff").hidden = !site; $("siteGo").textContent = site ? "Reconnect" : "Connect";
+  $("siteErr").hidden = true; $("siteDlg").hidden = false; closeSideOnPhone();
+}
+$("siteBtn").onclick = openSiteDlg;
+$("siteCancel").onclick = () => { $("siteDlg").hidden = true; };
+$("siteOff").onclick = () => { site = null; saveSite(); if (prefs.mode === "site") setMode("code"); renderSite(); $("siteDlg").hidden = true; };
+$("siteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const repo = $("siteRepo").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, ""), token = $("siteToken").value.trim();
+  const err = (m) => { $("siteErr").textContent = m; $("siteErr").hidden = false; };
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return err("Write the repository as owner/name.");
+  const before = site; site = { repo, token, branch: "main", picked: before?.repo === repo ? before.picked : [] };
+  $("siteGo").disabled = true; $("siteErr").hidden = true;
+  try {
+    const info = await (await gh(`/repos/${repo}`)).json();
+    if (info.permissions && !info.permissions.push) throw new Error("This token can read the repository but not change it. Set Contents to Read and write.");
+    site.branch = info.default_branch || "main";
+    await siteLoadTree();
+    $("siteDlg").hidden = true; setMode("site"); renderSite();
+  } catch (e2) { site = before; err(e2.message === "Failed to fetch" || e2.message === "Load failed" ? "Couldn't reach GitHub. Check your internet." : e2.message); }
+  $("siteGo").disabled = false;
+});
+$("siteFiles").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c || !e.target.closest(".x")) return; site.picked = site.picked.filter((p) => p !== c.dataset.path); saveSite(); renderSite(); });
+function renderPick() {
+  const q = $("pickFilter").value.trim().toLowerCase();
+  const list = (site.tree || []).filter((p) => p.toLowerCase().includes(q)).slice(0, 200);
+  $("pickList").innerHTML = list.map((p) => `<label><input type="checkbox" value="${esc(p)}"${site.picked.includes(p) ? " checked" : ""}>${esc(p)}</label>`).join("") || '<div class="none">No matching text files.</div>';
+}
+$("siteAdd").onclick = async () => { $("pickFilter").value = ""; $("pickDlg").hidden = false; renderPick(); try { await siteLoadTree(); renderPick(); } catch (e) { setStatus(e.message); } };
+$("pickFilter").oninput = renderPick;
+$("pickList").addEventListener("change", (e) => { const v = e.target.value; site.picked = e.target.checked ? [...new Set([...site.picked, v])] : site.picked.filter((p) => p !== v); saveSite(); });
+$("pickDone").onclick = () => { $("pickDlg").hidden = true; renderSite(); };
+async function publish(btn, block, code) {
+  if (!site) return openSiteDlg();
+  const path = block.dataset.path;
+  let note = block.querySelector(".pubnote");
+  if (!note) { note = document.createElement("div"); note.className = "pubnote"; block.appendChild(note); }
+  const say = (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); };
+  if (!/^[\w@()+ .\/-]+$/.test(path) || path.includes("..")) return say("Max gave a file name that can't be published: " + path, true);
+  if (!code.endsWith("\n")) code += "\n";
+  btn.disabled = true;
+  try {
+    if (btn.dataset.armed !== "1") { // first tap: compare with what's live
+      const cur = await ghRead(path);
+      if (cur && cur.text === code) { say("This is the same as the file on GitHub. Nothing to publish."); btn.disabled = false; return; }
+      const oldN = cur ? cur.text.split("\n").length : 0, newN = code.split("\n").length;
+      const shrunk = cur && code.length < cur.text.length * 0.6;
+      say(cur ? `Replaces ${path} in ${site.repo} (${oldN} lines → ${newN} lines).` + (shrunk ? " Warning: this is much shorter than the current file. Max may have left parts out. Run or read it first." : "") + " Tap again to publish."
+              : `Creates a new file ${path} in ${site.repo} (${newN} lines). Tap again to publish.`, shrunk);
+      btn.dataset.armed = "1"; btn.dataset.sha = cur?.sha || ""; btn.textContent = "Publish now"; btn.classList.toggle("warn", !!shrunk); btn.disabled = false;
+      return;
+    }
+    say("Publishing…");
+    const ask = [...current.messages].reverse().find((m) => m.role === "user")?.content || "update";
+    const bytes = new TextEncoder().encode(code); let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    const res = await (await gh(`/repos/${site.repo}/contents/${ghPath(path)}`, { method: "PUT", body: JSON.stringify({ message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), content: btoa(bin), branch: site.branch, ...(btn.dataset.sha ? { sha: btn.dataset.sha } : {}) }) })).json();
+    btn.textContent = "Published ✓"; btn.classList.remove("warn");
+    note.classList.remove("err");
+    note.innerHTML = `Published to ${esc(site.repo)}. Vercel usually updates the live site in about a minute. ` + (res.commit?.html_url ? `<a href="${esc(res.commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    if (!site.tree.includes(path)) { site.tree.push(path); saveSite(); }
+  } catch (e) { say(e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message, true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Publish"; }
 }
 
 /* ---------- voice chat ---------- */
@@ -760,18 +957,28 @@ document.addEventListener("visibilitychange", () => { if (document.hidden && V.o
 function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
 input.addEventListener("input", () => { autosize(); updateSend(); });
 input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(input.value); } });
-$("composer").addEventListener("submit", (e) => { e.preventDefault(); if (busy) ctl?.abort(); else send(input.value); });
+$("composer").addEventListener("submit", (e) => { e.preventDefault(); if (busy) ctl?.abort(); else submit(input.value); });
+async function submit(text) {
+  if (prefs.mode !== "site") return send(text);
+  if (!site) return openSiteDlg();
+  if (!text.trim()) return;
+  sendBtn.disabled = true; setStatus("");
+  try { send(text, { files: await siteFilesForSend(), site: true }); }
+  catch (e) { setStatus(e.message); updateSend(); }
+}
 $("starters").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setMode(b.dataset.mode); send(b.firstChild.textContent); });
 
 function setMode(m) {
+  if (m === "site" && !site) { openSiteDlg(); return; }
   prefs.mode = m; savePrefs();
   document.querySelectorAll(".modes button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m)));
   $("modeTag").textContent = MODES[m].label;
+  renderSite();
 }
 document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
 $("modeTag").title = "Click to switch mode";
 $("modeTag").style.cursor = "pointer";
-$("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
+$("modeTag").onclick = () => { const k = Object.keys(MODES).filter((x) => x !== "site" || site); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
 
 const pop = $("popover"), setBtn = $("settingsBtn");
 setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
@@ -791,11 +998,11 @@ $("newChat").onclick = () => { if (!busy) newChat(); };
 function applyPrefs() {
   $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
   $("subject").value = prefs.subject || "";
-  if (MODES[prefs.mode]) setMode(prefs.mode);
+  if (MODES[prefs.mode] && (prefs.mode !== "site" || site)) setMode(prefs.mode);
 }
 $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
 $("subject").value = prefs.subject || "";
-setMode(MODES[prefs.mode] ? prefs.mode : "teach");
+setMode(MODES[prefs.mode] && (prefs.mode !== "site" || site) ? prefs.mode : "teach");
 if (prefs.collapsed) shell.classList.add("collapsed");
 const hr = new Date().getHours();
 $("greeting").textContent = (hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + ". What do you want to learn?";
