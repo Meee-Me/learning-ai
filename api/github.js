@@ -7,7 +7,11 @@ const BUILT_IN = process.env.GITHUB_CLIENT_ID || "";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
-  if (req.method === "GET") return res.status(200).json({ enabled: !!BUILT_IN });
+  if (req.method === "GET") {
+    // Which GitHub repository this copy of Max is deployed from (Vercel tells us), so the owner can save the setup into it.
+    const o = process.env.VERCEL_GIT_REPO_OWNER, n = process.env.VERCEL_GIT_REPO_SLUG;
+    return res.status(200).json({ enabled: !!BUILT_IN, repo: o && n ? `${o}/${n}` : "" });
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
   const given = String(body.client_id || "").trim();

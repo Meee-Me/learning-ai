@@ -139,7 +139,8 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .btn.big { display: block; width: 100%; padding: 12px 16px; font-size: 16px; text-align: center; text-decoration: none; }
 .setup { margin: 0; padding-left: 20px; font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; }
 .copyline { display: block; font: 12.5px var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-top: 4px; user-select: all; overflow-wrap: anywhere; }
-#ghOauth, #ghDevice, #ghRepos, #ghSetup { display: flex; flex-direction: column; gap: 10px; }
+#ghShare { border: 1px solid var(--accent); border-radius: 12px; padding: 12px; }
+#ghOauth, #ghDevice, #ghRepos, #ghSetup, #ghShare { display: flex; flex-direction: column; gap: 10px; }
 .devcode { font: 600 30px var(--font-mono); letter-spacing: .12em; text-align: center; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--bg); user-select: all; }
 #tokenWay > summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
 #tokenWay[open] { display: flex; flex-direction: column; gap: 12px; }
@@ -381,6 +382,11 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <div class="devcode" id="ghCode"></div>
             <a class="btn big" id="ghOpen" href="https://github.com/login/device" target="_blank" rel="noopener">Copy code and open GitHub</a>
             <p class="hint" id="ghWait">Waiting for you to approve on GitHub…</p>
+          </div>
+          <div id="ghShare" hidden>
+            <p><b>Make it easy for everyone.</b> Save this setup into Max so nobody has to do it again, on any device.</p>
+            <button class="btn big" id="ghShareGo" type="button">Save for everyone</button>
+            <p class="hint" id="ghShareNote"></p>
           </div>
           <div id="ghRepos" hidden>
             <p>Which website should Max work on?</p>
@@ -914,8 +920,12 @@ $("siteCancel").onclick = () => { $("siteDlg").hidden = true; ghReset(); };
 /* Connect GitHub without a token: GitHub shows a code, you approve, Max gets access. */
 let ghOauth = false, ghRun = 0, ghRepoAll = [];
 let ghClient = store.get("max.ghClient", ""); // the app's public Client ID, when Max's server doesn't have one built in
-fetch("/api/github").then((r) => r.json()).then((j) => { ghOauth = !!j.enabled; }).catch(() => {});
-function ghReset() { ghRun++; pendingToken = ""; $("ghConnect").hidden = false; $("ghDevice").hidden = true; $("ghRepos").hidden = true; $("ghSetup").hidden = true; }
+let maxRepo = "", ghShared = false; // the repository Max himself lives in; whether the setup is already saved there
+fetch("/api/github").then((r) => r.json()).then((j) => { ghOauth = !!j.enabled; maxRepo = j.repo || ""; }).catch(() => {});
+fetch("/max.config.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((c) => {
+  if (c && /^[A-Za-z0-9.]{16,40}$/.test(c.githubClientId || "")) { ghClient = c.githubClientId; ghShared = true; }
+}).catch(() => {});
+function ghReset() { ghRun++; pendingToken = ""; $("ghConnect").hidden = false; $("ghDevice").hidden = true; $("ghRepos").hidden = true; $("ghSetup").hidden = true; $("ghShare").hidden = true; }
 const ghApi = (body) => fetch("/api/github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, ...(ghOauth ? {} : { client_id: ghClient }) }) }).then((r) => r.json());
 function ghShowSetup() { $("ghConnect").hidden = true; $("ghSetup").hidden = false; $("ghOrigin").textContent = location.origin; $("ghClientId").value = ghClient; }
 $("ghSetupGo").onclick = () => {
@@ -955,7 +965,22 @@ async function ghPickRepo(run) {
       ghRepoAll.push(...list.filter((r) => r.permissions?.push));
       if (list.length < 100) break;
     }
-    if (run === ghRun) ghRenderRepos();
+    if (run !== ghRun) return;
+    ghRenderRepos();
+    // The owner of Max can save the one-time setup into Max's own repository for everybody.
+    const mine = ghRepoAll.find((r) => r.full_name.toLowerCase() === maxRepo.toLowerCase());
+    if (!ghOauth && !ghShared && ghClient && mine) {
+      $("ghShare").hidden = false; $("ghShareGo").disabled = false; $("ghShareGo").textContent = "Save for everyone"; $("ghShareNote").textContent = `Adds a small settings file to ${mine.full_name}. The Client ID in it is public, not a secret.`;
+      $("ghShareGo").onclick = async () => {
+        $("ghShareGo").disabled = true; $("ghShareNote").textContent = "Saving…";
+        try {
+          const url = `/repos/${mine.full_name}/contents/max.config.json`;
+          const old = await gh(url).then((r) => r.json()).catch((e) => { if (e.status === 404) return null; throw e; });
+          await gh(url, { method: "PUT", body: JSON.stringify({ message: "Save the GitHub sign-in setup for everyone", content: btoa(JSON.stringify({ githubClientId: ghClient }, null, 2) + "\n"), branch: mine.default_branch, ...(old?.sha ? { sha: old.sha } : {}) }) });
+          ghShared = true; $("ghShareGo").textContent = "Saved ✓"; $("ghShareNote").textContent = "Saved. In about a minute, Connect GitHub works for everyone with no setup. Now pick the website for Max to work on.";
+        } catch (e) { $("ghShareGo").disabled = false; $("ghShareNote").textContent = netErr(e); }
+      };
+    }
   } catch (e) { $("ghRepoList").innerHTML = `<div class="none">${esc(netErr(e))}</div>`; }
 }
 function ghRenderRepos() {
