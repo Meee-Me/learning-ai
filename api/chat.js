@@ -52,6 +52,27 @@ Rules: keep replies short (usually under 150 words). Use short paragraphs, bulle
 
 const VOICE = "\nThis turn is a SPOKEN conversation: your reply will be read aloud. Answer in 1 to 3 short, natural sentences. No Markdown, no lists, no emoji, no code blocks. Say math in words.";
 
+// The free service lists its models; pick the strongest ones it offers without an account.
+const WANT_HARD = ["openai-large", "qwen-coder", "deepseek", "mistral", "openai"];
+const WANT_EASY = ["openai-fast", "openai"];
+let modelCache = { at: 0, names: null };
+async function freeModels(hard) {
+  const want = hard ? WANT_HARD : WANT_EASY;
+  if (Date.now() - modelCache.at > 10 * 60 * 1000) {
+    modelCache.at = Date.now();
+    try {
+      const r = await fetch("https://text.pollinations.ai/models", { signal: AbortSignal.timeout(3000) });
+      const list = await r.json();
+      modelCache.names = (Array.isArray(list) ? list : [])
+        .filter((m) => !m || typeof m === "string" || !m.tier || m.tier === "anonymous")
+        .map((m) => (typeof m === "string" ? m : m.name)).filter(Boolean);
+    } catch { modelCache.names = null; }
+  }
+  const have = modelCache.names;
+  const picked = have && have.length ? want.filter((m) => have.includes(m)) : want;
+  return [...new Set([...picked, "openai"])].slice(0, 4);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
 
@@ -88,10 +109,18 @@ export default async function handler(req, res) {
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
     body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "site" ? 12000 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
   }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
-  // Code needs the stronger model, not the fast one.
-  let upstream = await ask(FREE && (mode === "code" || mode === "site") && !process.env.MAX_MODEL ? "openai" : MODEL);
-  // The free service's fast model can be missing or busy: fall back to its standard one.
-  if (FREE && !upstream.ok && MODEL !== "openai") upstream = await ask("openai");
+  // Which models to try, strongest first. Code and website edits get the strongest ones.
+  const hard = mode === "code" || mode === "site";
+  let tries = [MODEL];
+  if (process.env.MAX_MODEL) tries = [MODEL];
+  else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
+  else if (FREE) tries = await freeModels(hard);
+  let upstream, used = "";
+  for (const model of tries) {
+    upstream = await ask(model);
+    used = model;
+    if (upstream.ok && upstream.body) break;
+  }
 
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => "");
@@ -108,7 +137,7 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: msg + (reason ? ` (Vercel said: ${reason.slice(0, 200)})` : ` (error ${upstream.status})`) });
   }
 
-  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" });
+  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Max-Model": used.replace(/[^\w./@-]/g, "") });
   const reader = upstream.body.getReader();
   const dec = new TextDecoder();
   let buf = "";

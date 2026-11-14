@@ -165,6 +165,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 @keyframes pulse { 50% { opacity: .2; } }
 .actions { display: flex; gap: 2px; margin-top: 4px; margin-left: -6px; }
 .actions .iconbtn { padding: 5px; }
+.actions .brain { font: 11px var(--font-mono); color: var(--muted); align-self: center; margin-left: 6px; }
 .actions svg { width: 15px; height: 15px; }
 
 .files { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -442,7 +443,7 @@ const dirty = new Set();
 let pushTimer = 0, prefsTimer = 0, synced = false;
 function slim(c) {
   return { id: c.id, title: c.title, created: c.created, updated: c.updated || c.created,
-    messages: c.messages.map((m) => ({ role: m.role, content: m.content, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
+    messages: c.messages.map((m) => ({ role: m.role, content: m.content, model: m.model, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
 }
 function cloudSave(c) {
   if (!signedIn() || !c.messages.length) return;
@@ -616,7 +617,7 @@ function renderMessage(m, i) {
     return el;
   }
   const el = document.createElement("div"); el.className = "turn-max";
-  el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}</div></div>`;
+  el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}${m.model ? `<span class="brain" title="The AI model that wrote this answer">${esc(m.model)}</span>` : ""}</div></div>`;
   el.querySelector(".text").innerHTML = md(m.content);
   el.dataset.index = i;
   return el;
@@ -720,7 +721,7 @@ async function respond(opts = {}) {
   thread.appendChild(box); scroller.scrollTop = scroller.scrollHeight;
   const out = box.querySelector(".text");
   busy = true; ctl = new AbortController(); updateSend(); setStatus("");
-  let answer = "";
+  let answer = "", usedModel = "";
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
@@ -731,6 +732,7 @@ async function respond(opts = {}) {
       try { msg = (await res.json()).error || msg; } catch {}
       throw new Error(msg);
     }
+    usedModel = res.headers.get("X-Max-Model") || "";
     const reader = res.body.getReader(), dec = new TextDecoder();
     for (;;) {
       const { done, value } = await reader.read();
@@ -746,7 +748,7 @@ async function respond(opts = {}) {
     const msg = String(e?.message || e);
     if (e.name !== "AbortError") { const shown = /failed to fetch|load failed|network/i.test(msg) ? (answer.trim() ? "Max got cut off before he finished. Ask him to continue." : "Max couldn't reach his server. Check your internet and try again.") : msg; setStatus(shown); opts.onError?.(shown); }
   }
-  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim() });
+  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel });
   busy = false; ctl = null;
   renderThread(); saveChats(current); updateSend();
   return answer.trim();
