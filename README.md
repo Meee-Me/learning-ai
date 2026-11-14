@@ -21,6 +21,15 @@ GitHub) then rebuilds it.
 3. **Run** previews web pages. **Publish** sends one file; **Publish all** sends every changed file
    as a single update. Both take two taps and warn when a file got much shorter.
 
+How Max works on a site, step by step:
+
+- **Search**: he can search every file for a word to find where something is.
+- **Open**: he opens whole files, or just some lines of a big file, so file size is no longer a limit.
+- **Edit**: for small changes he writes find-and-replace edits instead of rewriting the whole file.
+- **Check**: before you see a change, it is applied to a copy and checked: every edit must match the
+  real file, JavaScript and JSON must parse, and a rewritten file must not lose half its lines. If
+  something is wrong Max is told and fixes it (up to two tries). Answers that pass show "✓ checked".
+
 Optional: paste a **Vercel** or **Netlify** token in the same dialog. After a publish Max then
 watches the rebuild, says when the change is live (with a link), and if the build fails shows the
 error with an **Ask Max to fix it** button. Max only reads from Vercel and Netlify.

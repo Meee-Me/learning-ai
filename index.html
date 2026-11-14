@@ -160,6 +160,8 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .picklist label:last-child { border-bottom: 0; }
 .picklist input { width: auto; }
 .picklist .none { padding: 12px; color: var(--muted); font-size: 13px; }
+.actions .brain.ok { color: #2fa36b; }
+.warnbox { border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
 .stepline { font-size: 13px; color: var(--muted); padding-left: 40px; margin-block: -10px; overflow-wrap: anywhere; }
 .puball { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .puball .pubnote { border: 0; padding: 0; flex: 1; min-width: 200px; }
@@ -479,7 +481,7 @@ const dirty = new Set();
 let pushTimer = 0, prefsTimer = 0, synced = false;
 function slim(c) {
   return { id: c.id, title: c.title, created: c.created, updated: c.updated || c.created,
-    messages: c.messages.map((m) => ({ role: m.role, content: m.content, model: m.model, auto: m.auto, step: m.step, notes: m.notes, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
+    messages: c.messages.map((m) => ({ role: m.role, content: m.content, model: m.model, auto: m.auto, step: m.step, notes: m.notes, check: m.check, checked: m.checked, problems: m.problems, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
 }
 function cloudSave(c) {
   if (!signedIn() || !c.messages.length) return;
@@ -529,10 +531,11 @@ function md(src) {
   parts.forEach((part, i) => {
     if (i % 2) {
       const info = ((part.match(/^([^\n]*)\n/) || [])[1] || "").trim(), closed = i < parts.length - 1;
-      const path = /^file:/i.test(info) ? info.slice(5).trim().replace(/^\/+/, "") : "";
+      const isEdit = /^edit:/i.test(info);
+      const path = /^(file|edit):/i.test(info) ? info.slice(5).trim().replace(/^\/+/, "") : "";
       const lang = path ? (/\.html?$/i.test(path) ? "html" : /\.m?js$/i.test(path) ? "js" : "file") : info.split(/\s/)[0];
-      const runnable = closed && /^(html|js|javascript)$/i.test(lang);
-      html += `<div class="codeblock" data-lang="${lang.toLowerCase()}"${path ? ` data-path="${path.replace(/"/g, "")}"` : ""}><div class="codehead"><span>${path || lang || "code"}</span><span class="grow"></span>` +
+      const runnable = closed && (isEdit ? lang === "html" : /^(html|js|javascript)$/i.test(lang));
+      html += `<div class="codeblock" data-lang="${lang.toLowerCase()}"${path ? ` data-path="${path.replace(/"/g, "")}" data-kind="${isEdit ? "edit" : "file"}"` : ""}><div class="codehead"><span>${path ? path + (isEdit ? " · edit" : "") : lang || "code"}</span><span class="grow"></span>` +
         (runnable ? `<button type="button" data-cb="run">▶ Run</button>` : "") + (closed ? `<button type="button" data-cb="copy">Copy</button>` : "") + (closed && path ? `<button type="button" data-cb="publish">Publish</button>` : "") +
         `</div><pre><code>${part.replace(/^[^\n]*\n/, "")}</code></pre></div>`;
       return;
@@ -650,7 +653,8 @@ function renderMessage(m, i) {
   if (m.auto) {
     const el = document.createElement("div"); el.className = "stepline";
     const names = (m.files || []).map((f) => f.name);
-    el.textContent = (names.length ? "📂 Max opened " + names.join(", ") : "📂 Max tried to open a file") + (m.notes?.length ? " · " + m.notes.join(" · ") : "");
+    el.textContent = m.check ? "🔎 Max checked his change and is fixing: " + (m.notes || []).join(" · ")
+      : (names.length ? "📂 Max opened " + names.join(", ") + (m.notes?.length ? " · " : "") : "🔎 Max ") + ((m.notes || []).join(" · ") || (names.length ? "" : "looked around"));
     return el;
   }
   if (m.role === "user") {
@@ -660,9 +664,10 @@ function renderMessage(m, i) {
     return el;
   }
   const el = document.createElement("div"); el.className = "turn-max";
-  el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}${m.model ? `<span class="brain" title="The AI model that wrote this answer">${esc(m.model)}</span>` : ""}</div></div>`;
+  el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}${m.model ? `<span class="brain" title="The AI model that wrote this answer">${esc(m.model)}</span>` : ""}${m.checked ? '<span class="brain ok" title="Max applied his change to a copy and found no errors">✓ checked</span>' : ""}</div></div>`;
   el.querySelector(".text").innerHTML = md(m.content);
   el.dataset.index = i;
+  if (m.problems?.length) el.querySelector(".text").insertAdjacentHTML("beforeend", `<p class="warnbox">Max couldn't fix these problems, so check before publishing: ${esc(m.problems.join("; "))}</p>`);
   const nFiles = el.querySelectorAll(".codeblock[data-path]").length;
   if (nFiles > 1) el.querySelector(".text").insertAdjacentHTML("beforeend", `<div class="puball"><button class="btn" type="button" data-cb="publishall">Publish all ${nFiles} files</button><span class="pubnote"></span></div>`);
   return el;
@@ -710,8 +715,8 @@ thread.addEventListener("click", async (e) => {
   if (cb?.dataset.cb === "publishall") return publishAll(cb, cb.closest(".turn-max"));
   if (cb) {
     const block = cb.closest(".codeblock"), code = block.querySelector("code").textContent;
-    if (cb.dataset.cb === "run") return runCode(block.dataset.lang, code);
-    if (cb.dataset.cb === "publish") return publish(cb, block, code);
+    if (cb.dataset.cb === "run") return block.dataset.kind === "edit" ? runEdit(block) : runCode(block.dataset.lang, code);
+    if (cb.dataset.cb === "publish") return publish(cb, block);
     try { await navigator.clipboard.writeText(code); cb.textContent = "Copied"; setTimeout(() => (cb.textContent = "Copy"), 1500); }
     catch { const r = document.createRange(); r.selectNodeContents(block.querySelector("code")); getSelection().removeAllRanges(); getSelection().addRange(r); }
     return;
@@ -740,7 +745,7 @@ function updateSend() {
   sendBtn.setAttribute("aria-label", busy ? "Stop" : "Send");
 }
 function modelMessages() {
-  const msgs = current.messages.slice(-16);
+  const msgs = current.messages.slice(-24);
   let task = 0; msgs.forEach((m, i) => { if (m.role === "user" && !m.auto) task = i; }); // where the current request starts
   return msgs.map((m, i) => {
     if (m.role !== "user" || !m.files?.length) return { role: m.role, content: m.content };
@@ -796,11 +801,13 @@ async function respond(opts = {}) {
     if (e.name !== "AbortError") { const shown = /failed to fetch|load failed|network/i.test(msg) ? (answer.trim() ? "Max got cut off before he finished. Ask him to continue." : "Max couldn't reach his server. Check your internet and try again.") : msg; setStatus(shown); opts.onError?.(shown); }
   }
   const stopped = !!ctl?.signal.aborted;
-  const wants = !stopped && prefs.mode === "site" && site ? parseReads(answer) : [];
-  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel, ...(wants.length ? { step: true } : {}) });
+  const agent = !stopped && prefs.mode === "site" && !!site;
+  const act = agent ? parseActions(answer) : null;
+  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel, ...(act ? { step: true } : {}) });
   busy = false; ctl = null;
   renderThread(); saveChats(current); updateSend();
-  if (wants.length) return agentRead(wants, opts);
+  if (act) return agentStep(act, opts);
+  if (agent && answer.trim()) return checkWork(opts);
   return answer.trim();
 }
 
@@ -831,7 +838,8 @@ async function ghRead(path) { // -> { text, sha } or null when the file doesn't 
 }
 async function siteLoadTree() {
   const t = await (await gh(`/repos/${site.repo}/git/trees/${encodeURIComponent(site.branch)}?recursive=1`)).json();
-  site.tree = (t.tree || []).filter((x) => x.type === "blob" && TEXTY.test(x.path) && !/(^|\/)(node_modules|\.git|dist|build|vendor)\//.test(x.path) && !/package-lock\.json$|\.min\./.test(x.path)).map((x) => x.path);
+  treeInfo = (t.tree || []).filter((x) => x.type === "blob" && TEXTY.test(x.path) && !/(^|\/)(node_modules|\.git|dist|build|vendor)\//.test(x.path) && !/package-lock\.json$|\.min\./.test(x.path)).map((x) => ({ path: x.path, sha: x.sha, size: x.size || 0 }));
+  site.tree = treeInfo.map((x) => x.path);
   site.picked = (site.picked || []).filter((p) => site.tree.includes(p));
   saveSite();
 }
@@ -975,102 +983,204 @@ function watchDeploy(sha, box) {
 }
 const hostName = () => [hosts.vercel?.token && "Vercel", hosts.netlify?.token && "Netlify"].filter(Boolean).join(" and ");
 
-// Max asks for files with a line like "READ: index.html, css/style.css".
-function parseReads(answer) {
-  if (/```file:/i.test(answer)) return [];
-  const out = [];
-  for (const m of answer.matchAll(/^\s*(?:[-*]\s*)?READ:\s*(.+)$/gim)) m[1].split(/[,\s]+/).forEach((x) => { x = x.replace(/[`'"<>]/g, "").replace(/^\/+/, "").trim(); if (x && !out.includes(x)) out.push(x); });
-  return out.slice(0, 5);
+/* ----- Max's tools: open files, search, edit, check his own work ----- */
+const blobCache = new Map(); // git sha -> file text, for searching
+let treeInfo = [];           // [{ path, sha, size }]
+const b64text = (b) => new TextDecoder().decode(Uint8Array.from(atob((b || "").replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+const taskStart = () => { let t = 0; current.messages.forEach((m, i) => { if (m.role === "user" && !m.auto) t = i; }); return t; };
+const newFile = (name, text) => ({ id: Math.random().toString(36).slice(2), name, size: text.length, kind: "site", text, status: "from " + site.repo });
+
+// Max asks with lines like "READ: index.html, js/app.js:120-300" and "SEARCH: addToCart".
+function parseActions(answer) {
+  if (/```(file|edit):/i.test(answer)) return null;
+  const reads = [], searches = [];
+  for (const m of answer.matchAll(/^\s*(?:[-*]\s*)?READ:\s*(.+)$/gim)) for (let x of m[1].split(/[,\s]+/)) {
+    x = x.replace(/[`'"<>]/g, "").replace(/^\/+/, "").trim(); if (!x) continue;
+    const r = x.match(/^(.*?)(?::|#L?)(\d+)\s*-\s*L?(\d+)$/);
+    const item = r ? { path: r[1], from: Math.max(1, +r[2]), to: +r[3] } : { path: x };
+    if (!reads.some((y) => y.path === item.path && y.from === item.from)) reads.push(item);
+  }
+  for (const m of answer.matchAll(/^\s*(?:[-*]\s*)?SEARCH:\s*(.+)$/gim)) { const q = m[1].replace(/^[`'"]+|[`'"]+$/g, "").trim(); if (q.length > 1) searches.push(q); }
+  return reads.length || searches.length ? { reads: reads.slice(0, 5), searches: searches.slice(0, 3) } : null;
 }
-async function agentRead(paths, opts) {
-  const steps = (opts.step || 0) + 1;
-  let task = 0; current.messages.forEach((m, i) => { if (m.role === "user" && !m.auto) task = i; });
-  let used = current.messages.slice(task).flatMap((m) => m.files || []).filter((f) => f.kind === "site").reduce((n, f) => n + f.text.length, 0);
-  const seen = new Set(current.messages.slice(task).flatMap((m) => m.files || []).map((f) => f.name));
+async function repoSearch(q) {
+  if (!treeInfo.length) await siteLoadTree();
+  const files = treeInfo.filter((f) => f.size <= 300000).slice(0, 250), need = files.filter((f) => !blobCache.has(f.sha));
+  let i = 0;
+  await Promise.all(Array.from({ length: 6 }, async () => {
+    while (i < need.length) { const f = need[i++]; try { blobCache.set(f.sha, b64text((await (await gh(`/repos/${site.repo}/git/blobs/${f.sha}`)).json()).content)); } catch { blobCache.set(f.sha, ""); } }
+  }));
+  const needle = q.toLowerCase(), hits = [];
+  for (const f of files) (blobCache.get(f.sha) || "").split("\n").forEach((ln, n) => { if (hits.length < 40 && ln.toLowerCase().includes(needle)) hits.push(`${f.path}:${n + 1}: ${ln.trim().slice(0, 160)}`); });
+  return hits;
+}
+async function agentStep(act, opts) {
+  const steps = (opts.step || 0) + 1, t = taskStart();
+  const open = current.messages.slice(t).flatMap((m) => m.files || []).filter((f) => f.kind === "site");
+  let used = open.reduce((n, f) => n + f.text.length, 0);
+  const seen = new Set(open.map((f) => f.name));
   busy = true; updateSend();
-  const files = [], notes = [];
-  for (const path of paths) {
-    if (seen.has(path)) { notes.push(`${path}: already open`); continue; }
+  const files = [], notes = [], tell = [];
+  for (const { path, from, to } of act.reads) {
     try {
       const f = await ghRead(path);
-      if (!f) notes.push(`${path}: no such file`);
-      else if (used + f.text.length > SITE_LIMIT) notes.push(`${path}: too big to open (${Math.round(f.text.length / 1000)}k characters)`);
-      else { used += f.text.length; files.push({ id: Math.random().toString(36).slice(2), name: path, size: f.text.length, kind: "site", text: f.text, status: "from " + site.repo }); }
-    } catch (e) { notes.push(`${path}: ${e.message}`); }
+      if (!f) { notes.push(`${path}: no such file`); tell.push(`${path} does not exist. Use an exact path from the file list.`); continue; }
+      const lines = f.text.split("\n"), N = lines.length;
+      let name = path, text = f.text;
+      if (from) { const a = Math.min(from, N), b = Math.min(Math.max(to, a), a + 399, N); name = `${path} (lines ${a}-${b} of ${N})`; text = lines.slice(a - 1, b).join("\n"); }
+      else if (used + text.length > SITE_LIMIT) {
+        const b = Math.min(40, N); name = `${path} (lines 1-${b} of ${N})`; text = lines.slice(0, b).join("\n");
+        tell.push(`${path} is too big to open whole (${N} lines), so only lines 1-${b} are open. Find the part you need with SEARCH: some text, then open it with READ: ${path}:START-END (up to 400 lines). Change this file with an edit block, never a file block.`);
+      }
+      if (seen.has(name)) { notes.push(`${name}: already open`); continue; }
+      if (used + text.length > SITE_LIMIT) { notes.push(`${name}: no room left`); tell.push(`There is no room to open ${name}. Work with what is open.`); continue; }
+      used += text.length; seen.add(name); files.push(newFile(name, text));
+    } catch (e) { notes.push(`${path}: ${e.message}`); tell.push(`${path} could not be opened.`); }
   }
-  const last = steps >= 6;
+  for (const q of act.searches) {
+    try { const hits = await repoSearch(q); notes.push(`searched "${q}": ${hits.length}${hits.length === 40 ? "+" : ""} matches`); tell.push(`Search results for "${q}" (file:line: text):\n` + (hits.join("\n") || "no matches")); }
+    catch (e) { notes.push(`search "${q}" failed`); tell.push(`The search for "${q}" failed.`); }
+  }
+  const last = steps >= 8;
   current.messages.push({ role: "user", auto: true, files, notes,
-    content: (notes.length ? "Could not open: " + notes.join("; ") + "\n" : "") +
-      (files.length ? "Here are the files you asked for." : "No new files were opened.") +
-      (last ? " You can't open any more files now: finish the task with what you have, or tell the student what is missing." : " Continue with the task: open more files with READ if you really need them, otherwise make the change now.") });
+    content: (files.length ? "The files you asked for are open above.\n" : "") + tell.join("\n") +
+      (last ? "\nYou can't open or search any more now: finish the task with what you have, or tell the student what is missing." : "\nContinue with the task: READ or SEARCH again only if you really need to, otherwise make the change now.") });
   busy = false; renderThread(); saveChats(current);
   return respond({ ...opts, step: steps });
 }
-async function publishAll(btn, msgEl) {
+
+/* Change blocks in an answer: ```file:PATH (whole file) and ```edit:PATH (find/replace parts). */
+function parseBlocks(answer) {
+  const out = [];
+  for (const m of answer.matchAll(/```(file|edit):([^\n]*)\n([\s\S]*?)```/gi)) out.push({ kind: m[1].toLowerCase(), path: m[2].trim().replace(/^\/+/, ""), body: m[3] });
+  return out;
+}
+function parseHunks(body) {
+  const hunks = [];
+  for (const m of body.matchAll(/<{5,}[ \t]*(?:FIND|SEARCH)[^\n]*\n([\s\S]*?)\n?={5,}[ \t]*\n([\s\S]*?)\n?>{5,}[^\n]*(?:\n|$)/g)) hunks.push({ find: m[1], put: m[2] });
+  return hunks;
+}
+function applyHunks(text, hunks) {
+  const errors = [];
+  for (const h of hunks) {
+    if (!h.find.trim()) { errors.push("a FIND part is empty"); continue; }
+    const at = text.indexOf(h.find);
+    if (at >= 0) { text = text.slice(0, at) + h.put + text.slice(at + h.find.length); continue; }
+    // same lines, but spaces at the start or end of lines differ
+    const L = text.split("\n"), F = h.find.split("\n").map((x) => x.trim());
+    while (F.length && !F[0]) F.shift(); while (F.length && !F[F.length - 1]) F.pop();
+    let i = -1;
+    for (let k = 0; k + F.length <= L.length; k++) if (F.every((f, j) => L[k + j].trim() === f)) { i = k; break; }
+    if (i < 0) { errors.push(`the FIND text that starts with "${F[0].slice(0, 70)}" is not in the file exactly like that`); continue; }
+    L.splice(i, F.length, ...h.put.split("\n")); text = L.join("\n");
+  }
+  return { text, errors };
+}
+async function resolveBlocks(blocks) { // -> [{ path, cur, content, errors, whole }]
+  const out = new Map();
+  for (const b of blocks) {
+    let r = out.get(b.path);
+    if (!r) { const cur = await ghRead(b.path); r = { path: b.path, cur, content: cur ? cur.text : null, errors: [], whole: false }; out.set(b.path, r); }
+    if (b.kind === "file") { r.content = b.body.endsWith("\n") ? b.body : b.body + "\n"; r.whole = true; continue; }
+    if (r.content == null) { r.errors.push("the file does not exist, so it can't be edited. Create it with a file block"); continue; }
+    const hunks = parseHunks(b.body);
+    if (!hunks.length) { r.errors.push("the edit block is not in the FIND / REPLACE format"); continue; }
+    const a = applyHunks(r.content, hunks); r.content = a.text; r.errors.push(...a.errors);
+  }
+  return [...out.values()];
+}
+function syntaxProblem(path, text) {
+  const js = (code) => { if (/^\s*(import|export)\s/m.test(code)) return ""; try { new Function(code); return ""; } catch (e) { return e instanceof SyntaxError ? e.message : ""; } };
+  if (/\.(json|webmanifest)$/i.test(path)) { try { JSON.parse(text); } catch (e) { return "it is not valid JSON (" + e.message + ")"; } return ""; }
+  if (/\.m?js$/i.test(path)) { const e = js(text); return e ? "JavaScript syntax error: " + e : ""; }
+  if (/\.html?$/i.test(path)) for (const m of text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    if (/\bsrc\s*=|type\s*=\s*["']?(module|importmap|application\/|text\/(?!javascript))/i.test(m[1])) continue;
+    const e = js(m[2]); if (e) return "JavaScript syntax error inside a <script>: " + e;
+  }
+  return "";
+}
+async function checkWork(opts) {
+  const msg = current.messages[current.messages.length - 1], round = opts.fix || 0;
+  const blocks = parseBlocks(msg.content);
+  if (!blocks.length) return msg.content;
+  const bad = blocks.find((b) => !/^[\w@()+ .\/-]+$/.test(b.path) || b.path.includes(".."));
+  let problems = [];
+  try {
+    if (bad) problems.push(`"${bad.path}" is not a usable file path`);
+    else for (const r of await resolveBlocks(blocks)) {
+      r.errors.forEach((e) => problems.push(`${r.path}: ${e}`));
+      if (r.content == null || r.errors.length) continue;
+      const s = syntaxProblem(r.path, r.content); if (s) problems.push(`${r.path}: ${s}`);
+      if (round === 0 && r.whole && r.cur && r.content.length < r.cur.text.length * 0.5) problems.push(`${r.path}: your version has ${r.content.split("\n").length} lines but the real file has ${r.cur.text.split("\n").length}. You left parts out. Give the complete file, or better, change it with an edit block`);
+    }
+  } catch { return msg.content; } // couldn't reach GitHub: show the answer unchecked
+  if (!problems.length) { msg.checked = true; renderThread(); saveChats(current); return msg.content; }
+  if (round >= 2) { msg.problems = problems; renderThread(); saveChats(current); return msg.content; }
+  msg.step = true; // hide the faulty try; Max still sees it
+  current.messages.push({ role: "user", auto: true, check: true, files: [], notes: problems,
+    content: "I checked your change before showing it to the student and found problems:\n- " + problems.join("\n- ") + "\nFix them. If a FIND text did not match, open that part of the file again with READ and copy the lines exactly. Then give ALL your file and edit blocks again, corrected." });
+  renderThread(); saveChats(current);
+  return respond({ ...opts, fix: round + 1 });
+}
+
+/* Publishing */
+const blockOf = (el) => ({ kind: el.dataset.kind || "file", path: el.dataset.path, body: el.querySelector("code").textContent });
+const commitMsg = () => ("Max: " + ([...current.messages].reverse().find((m) => m.role === "user" && !m.auto)?.content || "update").replace(/\s+/g, " ")).slice(0, 72);
+const netErr = (e) => (e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message);
+function describe(list) { // what a publish will do, and whether anything looks wrong
+  const parts = []; let shrunk = false, changed = 0;
+  for (const r of list) {
+    if (r.cur && r.content === r.cur.text) { parts.push(`${r.path} (no change)`); continue; }
+    changed++;
+    if (r.cur && r.content.length < r.cur.text.length * 0.6) shrunk = true;
+    parts.push(r.cur ? `replaces ${r.path} (${r.cur.text.split("\n").length} → ${r.content.split("\n").length} lines)` : `creates ${r.path} (${r.content.split("\n").length} lines)`);
+  }
+  return { text: parts.join(", "), shrunk, changed };
+}
+async function publishBlocks(btn, blocks, say, where, label) {
   if (!site) return openSiteDlg();
-  const note = btn.parentElement.querySelector(".pubnote");
-  const say = (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); };
-  const files = [...msgEl.querySelectorAll(".codeblock[data-path]")].map((b) => { let c = b.querySelector("code").textContent; if (!c.endsWith("\n")) c += "\n"; return { path: b.dataset.path, content: c }; });
-  const byPath = new Map(files.map((f) => [f.path, f])); // if Max wrote a file twice, the last one wins
-  const list = [...byPath.values()];
-  if (list.some((f) => !/^[\w@()+ .\/-]+$/.test(f.path) || f.path.includes(".."))) return say("Max gave a file name that can't be published.", true);
+  if (blocks.some((b) => !/^[\w@()+ .\/-]+$/.test(b.path) || b.path.includes(".."))) return say("Max gave a file name that can't be published.", true);
   btn.disabled = true;
   try {
-    if (btn.dataset.armed !== "1") {
-      const parts = []; let shrunk = false;
-      for (const f of list) {
-        const cur = await ghRead(f.path);
-        if (cur && f.content.length < cur.text.length * 0.6) shrunk = true;
-        parts.push(cur ? (cur.text === f.content ? `${f.path} (no change)` : `replaces ${f.path}`) : `creates ${f.path}`);
-      }
-      say(`One update to ${site.repo}: ${parts.join(", ")}.` + (shrunk ? " Warning: a file is much shorter than the current one. Max may have left parts out." : "") + " Tap again to publish.", shrunk);
-      btn.dataset.armed = "1"; btn.textContent = "Publish now"; btn.classList.toggle("warn", shrunk); btn.disabled = false;
+    if (btn.dataset.armed !== "1") { // first tap: work out the result and compare with what's live
+      const list = await resolveBlocks(blocks);
+      const errs = list.flatMap((r) => r.errors.map((e) => `${r.path}: ${e}`));
+      if (errs.length) { say("This change can't be applied (" + errs.join("; ") + "). Ask Max to try again.", true); btn.disabled = false; return; }
+      const d = describe(list);
+      if (!d.changed) { say("This is the same as what's on GitHub. Nothing to publish."); btn.disabled = false; return; }
+      say(`One update to ${site.repo}: ${d.text}.` + (d.shrunk ? " Warning: a file gets much shorter. Max may have left parts out. Run or read it first." : "") + " Tap again to publish.", d.shrunk);
+      btn._list = list.filter((r) => !r.cur || r.content !== r.cur.text);
+      btn.dataset.armed = "1"; btn.textContent = "Publish now"; btn.classList.toggle("warn", d.shrunk); btn.disabled = false;
       return;
     }
     say("Publishing…");
-    const ask = [...current.messages].reverse().find((m) => m.role === "user" && !m.auto)?.content || "update";
-    const post = async (path, body, method = "POST") => (await gh(`/repos/${site.repo}/git/${path}`, { method, body: JSON.stringify(body) })).json();
+    const list = btn._list, post = async (path, body, method = "POST") => (await gh(`/repos/${site.repo}/git/${path}`, { method, body: JSON.stringify(body) })).json();
     const head = (await (await gh(`/repos/${site.repo}/git/ref/heads/${ghPath(site.branch)}`)).json()).object.sha;
     const base = (await (await gh(`/repos/${site.repo}/git/commits/${head}`)).json()).tree.sha;
     const tree = await post("trees", { base_tree: base, tree: list.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })) });
-    const commit = await post("commits", { message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), tree: tree.sha, parents: [head] });
+    const commit = await post("commits", { message: commitMsg(), tree: tree.sha, parents: [head] });
     await post(`refs/heads/${ghPath(site.branch)}`, { sha: commit.sha }, "PATCH");
-    btn.textContent = "Published ✓"; btn.classList.remove("warn"); note.classList.remove("err");
-    note.innerHTML = `Published ${list.length} files to ${esc(site.repo)}. ${hostName() ? "" : "Your host usually updates the live site in about a minute. "}` + (commit.html_url ? `<a href="${esc(commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
-    watchDeploy(commit.sha, btn.parentElement);
-    msgEl.querySelectorAll('[data-cb="publish"]').forEach((b) => { b.disabled = true; b.textContent = "Published ✓"; });
-  } catch (e) { say(e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message, true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Publish all"; }
+    btn.textContent = "Published ✓"; btn.classList.remove("warn");
+    say("");
+    where.querySelector(".pubnote").innerHTML = `Published ${list.length === 1 ? esc(list[0].path) : list.length + " files"} to ${esc(site.repo)}. ${hostName() ? "" : "Your host usually updates the live site in about a minute. "}` + (commit.html_url ? `<a href="${esc(commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    watchDeploy(commit.sha, where);
+    list.forEach((f) => { if (!site.tree.includes(f.path)) site.tree.push(f.path); }); saveSite();
+    return true;
+  } catch (e) { say(netErr(e), true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = label; }
 }
-async function publish(btn, block, code) {
-  if (!site) return openSiteDlg();
-  const path = block.dataset.path;
+function publishAll(btn, msgEl) {
+  const note = btn.parentElement.querySelector(".pubnote");
+  return publishBlocks(btn, [...msgEl.querySelectorAll(".codeblock[data-path]")].map(blockOf), (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); }, btn.parentElement, "Publish all")
+    .then((ok) => { if (ok) msgEl.querySelectorAll('[data-cb="publish"]').forEach((b) => { b.disabled = true; b.textContent = "Published ✓"; }); });
+}
+function publish(btn, block) {
   let note = block.querySelector(".pubnote");
   if (!note) { note = document.createElement("div"); note.className = "pubnote"; block.appendChild(note); }
-  const say = (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); };
-  if (!/^[\w@()+ .\/-]+$/.test(path) || path.includes("..")) return say("Max gave a file name that can't be published: " + path, true);
-  if (!code.endsWith("\n")) code += "\n";
-  btn.disabled = true;
-  try {
-    if (btn.dataset.armed !== "1") { // first tap: compare with what's live
-      const cur = await ghRead(path);
-      if (cur && cur.text === code) { say("This is the same as the file on GitHub. Nothing to publish."); btn.disabled = false; return; }
-      const oldN = cur ? cur.text.split("\n").length : 0, newN = code.split("\n").length;
-      const shrunk = cur && code.length < cur.text.length * 0.6;
-      say(cur ? `Replaces ${path} in ${site.repo} (${oldN} lines → ${newN} lines).` + (shrunk ? " Warning: this is much shorter than the current file. Max may have left parts out. Run or read it first." : "") + " Tap again to publish."
-              : `Creates a new file ${path} in ${site.repo} (${newN} lines). Tap again to publish.`, shrunk);
-      btn.dataset.armed = "1"; btn.dataset.sha = cur?.sha || ""; btn.textContent = "Publish now"; btn.classList.toggle("warn", !!shrunk); btn.disabled = false;
-      return;
-    }
-    say("Publishing…");
-    const ask = [...current.messages].reverse().find((m) => m.role === "user" && !m.auto)?.content || "update";
-    const bytes = new TextEncoder().encode(code); let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
-    const res = await (await gh(`/repos/${site.repo}/contents/${ghPath(path)}`, { method: "PUT", body: JSON.stringify({ message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), content: btoa(bin), branch: site.branch, ...(btn.dataset.sha ? { sha: btn.dataset.sha } : {}) }) })).json();
-    btn.textContent = "Published ✓"; btn.classList.remove("warn");
-    note.classList.remove("err");
-    note.innerHTML = `Published to ${esc(site.repo)}. ${hostName() ? "" : "Your host usually updates the live site in about a minute. "}` + (res.commit?.html_url ? `<a href="${esc(res.commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
-    watchDeploy(res.commit?.sha, block);
-    if (!site.tree.includes(path)) { site.tree.push(path); saveSite(); }
-  } catch (e) { say(e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message, true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Publish"; }
+  return publishBlocks(btn, [blockOf(block)], (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); }, block, "Publish");
+}
+async function runEdit(block) { // preview an edited page: apply the edit to the live file first
+  try { const [r] = await resolveBlocks([blockOf(block)]); if (r.errors.length || r.content == null) throw new Error("This edit can't be applied: " + (r.errors.join("; ") || "file not found")); runCode("html", r.content); }
+  catch (e) { setStatus(netErr(e)); }
 }
 
 /* ---------- voice chat ---------- */
