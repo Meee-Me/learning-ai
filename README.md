@@ -13,8 +13,9 @@ Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
 Max can change a website that lives in a GitHub repository; Vercel (or any host that deploys from
 GitHub) then rebuilds it.
 
-1. Tap **Connect a website** in the sidebar. Enter the repository (`owner/name`) and a GitHub
-   fine-grained token limited to that one repository with **Contents: Read and write**.
+1. Tap **Connect a website** in the sidebar, then **Connect GitHub**: GitHub shows a short code,
+   you approve, and you pick the repository from a list. No token to paste. (Pasting tokens still
+   works under "Use access tokens instead".)
 2. In **Edit website** mode, tell him what to change. Max sees the list of files, opens the ones he
    needs by himself (shown as "Max opened …"), then answers with the complete new files.
    **+ File** lets you hand him files up front.
@@ -30,9 +31,16 @@ How Max works on a site, step by step:
   real file, JavaScript and JSON must parse, and a rewritten file must not lose half its lines. If
   something is wrong Max is told and fixes it (up to two tries). Answers that pass show "✓ checked".
 
-Optional: paste a **Vercel** or **Netlify** token in the same dialog. After a publish Max then
-watches the rebuild, says when the change is live (with a link), and if the build fails shows the
-error with an **Ask Max to fix it** button. Max only reads from Vercel and Netlify.
+After a publish Max follows the rebuild through GitHub (Vercel, Netlify and others report back
+there), says when the change is live, and offers **Ask Max to fix it** if the build fails. Vercel or
+Netlify tokens are only needed to read full build error logs.
+
+### One-time setup for Connect GitHub (site owner)
+
+1. On GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**. Name "Max Tutor",
+   homepage and callback URL both the site's address. Tick **Enable Device Flow**. Register.
+2. Copy the **Client ID** (it is public, not a secret) into `GITHUB_CLIENT_ID` in Vercel's
+   Environment Variables, or into `CLIENT_ID` in `api/github.js`.
 
 The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
 Max reads up to 30,000 characters of files at a time, so big files can't be edited.

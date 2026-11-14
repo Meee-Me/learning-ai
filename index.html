@@ -136,6 +136,14 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .dlg { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; }
 .dlg h2 { margin: 0; font: 600 20px var(--font-display); }
 .dlg p { margin: 0; font-size: 14px; }
+.btn.big { display: block; width: 100%; padding: 12px 16px; font-size: 16px; text-align: center; text-decoration: none; }
+#ghOauth, #ghDevice, #ghRepos { display: flex; flex-direction: column; gap: 10px; }
+.devcode { font: 600 30px var(--font-mono); letter-spacing: .12em; text-align: center; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--bg); user-select: all; }
+#tokenWay > summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
+#tokenWay[open] { display: flex; flex-direction: column; gap: 12px; }
+.picklist button { text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 10px; font: 13px var(--font-mono); color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
+.picklist button:hover { background: var(--hover); }
+.picklist button span { display: block; font: 11.5px var(--font-body); color: var(--muted); }
 .dlg h3 { margin: 6px 0 -4px; font: 600 15px var(--font-display); display: flex; align-items: center; gap: 7px; }
 .dlg h3 span { font: 11.5px var(--font-body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .deploy { padding: 6px 12px; font-size: 12.5px; border-top: 1px solid var(--line); line-height: 1.9; }
@@ -352,19 +360,34 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
     <div class="modal" id="siteDlg" hidden>
       <form class="dlg" id="siteForm">
         <h2>Connect a website</h2>
-        <p>Max edits the website's files on <b>GitHub</b>. Your host (<b>Vercel</b> or <b>Netlify</b>) then rebuilds the site by itself. Connect the host too and Max watches the rebuild and tells you when it's live or what went wrong.</p>
-        <h3><img src="https://cdn.simpleicons.org/github/888" alt="" width="16" height="16">GitHub <span>needed</span></h3>
+        <p>Max edits the website's files on <b>GitHub</b>. Your host (Vercel, Netlify and others) then rebuilds the site by itself, and Max tells you when the change is live.</p>
+        <div id="ghOauth" hidden>
+          <button class="btn big" id="ghConnect" type="button">Connect GitHub</button>
+          <div id="ghDevice" hidden>
+            <p>Tap the button to copy this code, then paste it on GitHub and approve:</p>
+            <div class="devcode" id="ghCode"></div>
+            <a class="btn big" id="ghOpen" href="https://github.com/login/device" target="_blank" rel="noopener">Copy code and open GitHub</a>
+            <p class="hint" id="ghWait">Waiting for you to approve on GitHub…</p>
+          </div>
+          <div id="ghRepos" hidden>
+            <p>Which website should Max work on?</p>
+            <input id="ghRepoFilter" type="text" placeholder="Search your repositories…" autocomplete="off" autocapitalize="off">
+            <div class="picklist" id="ghRepoList"></div>
+          </div>
+        </div>
+        <details id="tokenWay"><summary>Use access tokens instead</summary>
+        <h3><img src="https://cdn.simpleicons.org/github/888" alt="" width="16" height="16">GitHub</h3>
         <label>GitHub repository
-          <input id="siteRepo" type="text" placeholder="owner/name, e.g. Meee-Me/my-site" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          <input id="siteRepo" type="text" placeholder="owner/name, e.g. Meee-Me/my-site" autocomplete="off" autocapitalize="off" spellcheck="false">
         </label>
         <label>GitHub access token
-          <input id="siteToken" type="password" placeholder="github_pat_…" autocomplete="off" required>
+          <input id="siteToken" type="password" placeholder="github_pat_…" autocomplete="off">
         </label>
         <details><summary>How do I get a token?</summary>
           <ol>
             <li>On github.com open <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b>.</li>
             <li>Tap <b>Generate new token</b>. Under <b>Repository access</b> pick <b>Only select repositories</b> and choose this one repository.</li>
-            <li>Under <b>Permissions → Repository</b>, set <b>Contents</b> to <b>Read and write</b>.</li>
+            <li>Under <b>Permissions → Repository</b>, set <b>Contents</b> to <b>Read and write</b>. To let Max see when the site is live, also set <b>Commit statuses</b> and <b>Deployments</b> to <b>Read-only</b>.</li>
             <li>Generate it, copy it, and paste it here.</li>
           </ol>
         </details>
@@ -390,13 +413,15 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <li>Copy the token and paste it here.</li>
           </ol>
         </details>
-        <p class="hint">Tokens stay in this browser only. Each one is sent only to its own service (GitHub, Vercel or Netlify), never to Max's server or his AI. Max only reads from Vercel and Netlify; he changes files on GitHub. The files Max opens are sent to his AI service, so don't connect a repository with secrets in it.</p>
+        <p class="hint">Vercel and Netlify tokens are only needed if you want Max to read build error logs. He only reads from them.</p>
+        <button class="btn" id="siteGo" type="submit">Connect with tokens</button>
+        </details>
+        <p class="hint">Your GitHub access stays in this browser. When you use Connect GitHub it passes through Max's server once, on its way from GitHub to you, and is not kept there. It is never sent to Max's AI. The files Max opens are sent to his AI service, so don't connect a repository with secrets in it.</p>
         <p class="status" id="siteErr" hidden></p>
         <div class="dlgrow">
           <button class="btn ghost danger" id="siteOff" type="button" hidden>Disconnect</button>
           <span class="grow"></span>
-          <button class="btn ghost" id="siteCancel" type="button">Cancel</button>
-          <button class="btn" id="siteGo" type="submit">Connect</button>
+          <button class="btn ghost" id="siteCancel" type="button">Close</button>
         </div>
       </form>
     </div>
@@ -816,8 +841,9 @@ const SITE_LIMIT = 30000; // characters of files Max can read at once
 let site = store.get("max.site", null); // { repo, token, branch, tree, picked }
 const saveSite = () => { try { site ? localStorage.setItem("max.site", JSON.stringify(site)) : localStorage.removeItem("max.site"); } catch {} };
 const TEXTY = /\.(html?|css|m?js|jsx|ts|tsx|json|md|txt|svg|xml|ya?ml|toml|py|php|rb|go|java|c|cpp|h|vue|svelte|astro|webmanifest)$/i;
+let pendingToken = ""; // set while picking a repository right after Connect GitHub
 async function gh(path, init = {}) {
-  const r = await fetch("https://api.github.com" + path, { ...init, headers: { Authorization: "Bearer " + site.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(init.headers || {}) } });
+  const r = await fetch("https://api.github.com" + path, { ...init, headers: { Authorization: "Bearer " + (pendingToken || site.token), Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(init.headers || {}) } });
   if (!r.ok) {
     const why = r.status === 401 ? "GitHub didn't accept the token. Make a new one and connect again."
       : r.status === 403 ? "The token isn't allowed to do that. It needs Contents: Read and write for this repository."
@@ -864,17 +890,74 @@ function renderSite() {
 function openSiteDlg() {
   $("siteRepo").value = site?.repo || ""; $("siteToken").value = site?.token || "";
   $("vercelToken").value = hosts.vercel?.token || ""; $("netlifyToken").value = hosts.netlify?.token || "";
-  $("siteOff").hidden = !site; $("siteGo").textContent = site ? "Reconnect" : "Connect";
+  $("siteOff").hidden = !site;
+  $("ghOauth").hidden = !ghOauth; $("tokenWay").open = !ghOauth; ghReset();
+  $("ghConnect").textContent = site ? `Connected to ${site.repo}. Connect another` : "Connect GitHub";
   $("siteErr").hidden = true; $("siteDlg").hidden = false; closeSideOnPhone();
 }
 $("siteBtn").onclick = openSiteDlg;
-$("siteCancel").onclick = () => { $("siteDlg").hidden = true; };
+$("siteCancel").onclick = () => { $("siteDlg").hidden = true; ghReset(); };
+
+/* Connect GitHub without a token: GitHub shows a code, you approve, Max gets access. */
+let ghOauth = false, ghRun = 0, ghRepoAll = [];
+fetch("/api/github").then((r) => r.json()).then((j) => { ghOauth = !!j.enabled; }).catch(() => {});
+function ghReset() { ghRun++; pendingToken = ""; $("ghConnect").hidden = false; $("ghDevice").hidden = true; $("ghRepos").hidden = true; }
+const ghApi = (body) => fetch("/api/github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+$("ghConnect").onclick = async () => {
+  const run = ++ghRun, err = (m) => { $("siteErr").textContent = m; $("siteErr").hidden = false; };
+  $("siteErr").hidden = true; $("ghConnect").disabled = true;
+  let d; try { d = await ghApi({ action: "start" }); } catch { d = { error: "Couldn't reach Max's server. Check your internet." }; }
+  $("ghConnect").disabled = false;
+  if (run !== ghRun) return;
+  if (!d.user_code) return err(d.error || "GitHub sign-in didn't start. Try again.");
+  $("ghConnect").hidden = true; $("ghDevice").hidden = false; $("ghCode").textContent = d.user_code; $("ghOpen").href = d.verification_uri || "https://github.com/login/device";
+  $("ghOpen").onclick = () => { navigator.clipboard?.writeText(d.user_code).catch(() => {}); };
+  $("ghWait").textContent = "Waiting for you to approve on GitHub…";
+  let wait = (d.interval || 5) + 1; const until = Date.now() + (d.expires_in || 900) * 1000;
+  while (run === ghRun && Date.now() < until) {
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    if (run !== ghRun) return;
+    let p; try { p = await ghApi({ action: "poll", device_code: d.device_code }); } catch { continue; }
+    if (p.access_token) { pendingToken = p.access_token; return ghPickRepo(run); }
+    if (p.error === "slow_down") wait += 5;
+    else if (p.error && p.error !== "authorization_pending") { ghReset(); return err(p.error === "access_denied" ? "You cancelled on GitHub. Tap Connect GitHub to try again." : "The code ran out. Tap Connect GitHub to get a new one."); }
+  }
+  if (run === ghRun) { ghReset(); err("The code ran out. Tap Connect GitHub to get a new one."); }
+};
+async function ghPickRepo(run) {
+  $("ghDevice").hidden = true; $("ghRepos").hidden = false; $("ghRepoFilter").value = "";
+  $("ghRepoList").innerHTML = '<div class="none">Loading your repositories…</div>';
+  try {
+    ghRepoAll = [];
+    for (let page = 1; page <= 3; page++) {
+      const list = await (await gh(`/user/repos?per_page=100&sort=pushed&page=${page}`)).json();
+      ghRepoAll.push(...list.filter((r) => r.permissions?.push));
+      if (list.length < 100) break;
+    }
+    if (run === ghRun) ghRenderRepos();
+  } catch (e) { $("ghRepoList").innerHTML = `<div class="none">${esc(netErr(e))}</div>`; }
+}
+function ghRenderRepos() {
+  const q = $("ghRepoFilter").value.trim().toLowerCase();
+  $("ghRepoList").innerHTML = ghRepoAll.filter((r) => r.full_name.toLowerCase().includes(q)).slice(0, 60)
+    .map((r) => `<button type="button" data-repo="${esc(r.full_name)}" data-branch="${esc(r.default_branch || "main")}">${esc(r.full_name)}<span>${r.private ? "private" : "public"}${r.homepage ? " · " + esc(r.homepage) : ""}</span></button>`).join("") || '<div class="none">No repositories you can change match that.</div>';
+}
+$("ghRepoFilter").oninput = ghRenderRepos;
+$("ghRepoList").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-repo]"); if (!b) return;
+  const before = site;
+  site = { repo: b.dataset.repo, token: pendingToken, branch: b.dataset.branch, picked: [], oauth: true };
+  try { await siteLoadTree(); pendingToken = ""; ghRun++; $("siteDlg").hidden = true; setMode("site"); renderSite(); }
+  catch (e2) { site = before; $("siteErr").textContent = netErr(e2); $("siteErr").hidden = false; }
+});
 $("siteOff").onclick = () => { site = null; saveSite(); hosts = {}; saveHosts(); if (prefs.mode === "site") setMode("code"); renderSite(); $("siteDlg").hidden = true; };
 $("siteForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const repo = $("siteRepo").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, ""), token = $("siteToken").value.trim();
   const err = (m) => { $("siteErr").textContent = m; $("siteErr").hidden = false; };
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return err("Write the repository as owner/name.");
+  if (!token) return err("Paste a GitHub access token.");
+  pendingToken = "";
   const before = site; site = { repo, token, branch: "main", picked: before?.repo === repo ? before.picked : [] };
   $("siteGo").disabled = true; $("siteErr").hidden = true;
   try {
@@ -950,9 +1033,26 @@ async function netlifyFind(sha) {
   if (!d) return null;
   return { host: "Netlify", state: d.state === "ready" ? "ok" : d.state === "error" ? "bad" : "wait", url: d.context === "production" ? d.ssl_url || d.deploy_ssl_url : d.deploy_ssl_url, page: d.admin_url ? `${d.admin_url}/deploys/${d.id}` : "", error: d.error_message || "The build failed." };
 }
+// Hosts report each rebuild back to GitHub, so Max can follow it with GitHub access alone.
+async function githubDeployFind(sha) {
+  const base = `/repos/${site.repo}`, quiet = (e) => { if (e.status === 403 || e.status === 404) e.quiet = true; throw e; };
+  const hostOf = (t) => (/vercel/i.test(t) ? "Vercel" : /netlify/i.test(t) ? "Netlify" : /cloudflare/i.test(t) ? "Cloudflare" : /render/i.test(t) ? "Render" : /pages/i.test(t) ? "GitHub Pages" : "Your host");
+  const deps = await (await gh(`${base}/deployments?sha=${sha}&per_page=5`).catch(quiet)).json();
+  const dep = deps.find((d) => !/preview/i.test(d.environment || "")) || deps[0];
+  if (dep) {
+    const st = (await (await gh(`${base}/deployments/${dep.id}/statuses?per_page=1`).catch(quiet)).json())[0];
+    const state = !st ? "wait" : st.state === "success" || st.state === "inactive" ? "ok" : st.state === "failure" || st.state === "error" ? "bad" : "wait";
+    return { host: hostOf((dep.creator?.login || "") + " " + (dep.environment || "")), state, url: st?.environment_url || "", page: st?.log_url || st?.target_url || "", error: st?.description || "The build failed. Open Details to read the log." };
+  }
+  const cs = await (await gh(`${base}/commits/${sha}/status`).catch(quiet)).json();
+  const s = (cs.statuses || []).find((x) => /vercel|netlify|deploy|pages|render|cloudflare/i.test(x.context));
+  if (!s) return null;
+  return { host: hostOf(s.context), state: s.state === "success" ? "ok" : s.state === "failure" || s.state === "error" ? "bad" : "wait", url: "", page: s.target_url || "", error: s.description || "The build failed. Open Details to read the log." };
+}
 function watchDeploy(sha, box) {
-  const jobs = [hosts.vercel?.token && ["Vercel", vercelFind], hosts.netlify?.token && ["Netlify", netlifyFind]].filter(Boolean);
-  if (!sha || !jobs.length) return;
+  let jobs = [hosts.vercel?.token && ["Vercel", vercelFind], hosts.netlify?.token && ["Netlify", netlifyFind]].filter(Boolean);
+  if (!jobs.length) jobs = [["Your host", githubDeployFind]];
+  if (!sha) return;
   for (const [name, find] of jobs) {
     const el = document.createElement("div"); el.className = "deploy wait"; box.appendChild(el);
     const show = (cls, html) => { el.className = "deploy " + cls; el.innerHTML = '<span class="dot"></span>' + html; };
@@ -961,21 +1061,22 @@ function watchDeploy(sha, box) {
     const tick = async () => {
       if (!el.isConnected) return;
       let d = null, failed = "";
-      try { d = await find(sha); } catch (e) { failed = e.status === 401 || e.status === 403 ? `${name} didn't accept the token. Connect again with a new one.` : e.message === "Failed to fetch" || e.message === "Load failed" ? `Couldn't reach ${name}.` : `${name} ${e.message}.`; }
+      try { d = await find(sha); } catch (e) { if (e.quiet) return el.remove(); failed = e.status === 401 || e.status === 403 ? `${name} didn't accept the token. Connect again with a new one.` : e.message === "Failed to fetch" || e.message === "Load failed" ? `Couldn't reach ${name}.` : `${name} ${e.message}.`; }
       if (failed && !/reach/.test(failed)) return show("bad", esc(failed));
       const link = (u, t) => (u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">${t}</a>` : "");
       if (d) found = true;
-      if (d?.state === "ok") return show("ok", `${name}: the change is live.${link(d.url, "Open the site")}`);
+      const who = d?.host || name;
+      if (d?.state === "ok") return show("ok", `${who}: the change is live.${link(d.url, "Open the site")}`);
       if (d?.state === "bad") {
-        show("bad", `${name}: the rebuild failed, so the live site did not change.${link(d.page, "Details")} <button type="button" data-fix="1">Ask Max to fix it</button><pre></pre>`);
+        show("bad", `${who}: the rebuild failed, so the live site did not change.${link(d.page, "Details")} <button type="button" data-fix="1">Ask Max to fix it</button><pre></pre>`);
         el.querySelector("pre").textContent = d.error;
-        el.querySelector("button").onclick = () => { input.value = `The ${name} build failed after your change. Find the cause and fix it. This is the error:\n${d.error}`; autosize(); updateSend(); submit(input.value); };
+        el.querySelector("button").onclick = () => { input.value = `The ${who} build failed after your change. Find the cause and fix it. This is the error:\n${d.error}`; autosize(); updateSend(); submit(input.value); };
         return;
       }
       const secs = (Date.now() - started) / 1000;
-      if (!found && secs > 90) return show("", `${name}: no rebuild found for this change. The site may be on another account or host.`);
+      if (!found && secs > 90) return show("", find === githubDeployFind ? "No rebuild showed up on GitHub for this change. The site may not rebuild from this repository." : `${name}: no rebuild found for this change. The site may be on another account or host.`);
       if (secs > 420) return show("", `${name}: still building after 7 minutes. Check it on ${name}.${link(d?.page, "Open")}`);
-      show("wait", d ? `${name}: building…${link(d.page, "Watch")}` : `${name}: waiting for the rebuild to start…`);
+      show("wait", d ? `${who}: building…${link(d.page, "Watch")}` : `${name}: waiting for the rebuild to start…`);
       setTimeout(tick, 6000);
     };
     setTimeout(tick, 4000);
