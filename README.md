@@ -66,6 +66,15 @@ With nothing configured, Max asks [Pollinations](https://pollinations.ai), a fre
 No key, no card. It is run by someone else, so it can be slow or busy at times, and the messages
 (and attached file text) are sent to it. Don't share private things with Max.
 
+### Optional: your own AI router or provider (stronger models)
+
+Max can use anything that speaks the OpenAI chat format: an [OmniRoute](https://github.com/diegosouzapw/OmniRoute)
+server you run, OpenRouter, Groq, and others. In Vercel's Environment Variables set:
+
+- `MAX_AI_URL`: the service's address ending in `/v1` (for example `https://openrouter.ai/api/v1`)
+- `MAX_AI_KEY`: your key for it
+- `MAX_MODEL`: the model name, or several separated by commas (tried in order)
+
 ### Optional: Cloudflare Workers AI (free, more reliable)
 
 Add `CF_ACCOUNT_ID` and `CF_API_TOKEN` (a token from the Workers AI template) in Vercel's

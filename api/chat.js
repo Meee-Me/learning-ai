@@ -1,15 +1,19 @@
-// Max's brain. Runs as a Vercel function and asks one of three AIs:
+// Max's brain. Runs as a Vercel function and asks one of these AIs:
 //  - "free" (default): Pollinations, a free public AI service. No key, no card, no setup.
-//  - Cloudflare Workers AI: used when CF_ACCOUNT_ID and CF_API_TOKEN are set in Vercel.
-//  - Vercel AI Gateway (Claude Haiku 5.5): used when MAX_BRAIN=gateway or AI_GATEWAY_API_KEY
-//    is set. Needs a card on the Vercel team.
+//  - Your own AI router or provider: set MAX_AI_URL, MAX_AI_KEY and MAX_MODEL in Vercel. Works with
+//    anything that speaks the OpenAI chat format: OmniRoute, OpenRouter, Groq, and others.
+//    MAX_MODEL can list several models separated by commas; they are tried in order.
+//  - Cloudflare Workers AI: used when CF_ACCOUNT_ID and CF_API_TOKEN are set.
+//  - Vercel AI Gateway (Claude): used when MAX_BRAIN=gateway or AI_GATEWAY_API_KEY is set.
 
-const CF = process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN;
-const GATEWAY = !CF && (process.env.MAX_BRAIN === "gateway" || process.env.AI_GATEWAY_API_KEY);
-const FREE = !CF && !GATEWAY;
-const MODEL = process.env.MAX_MODEL || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : GATEWAY ? "anthropic/claude-haiku-5.5" : "openai-fast");
-const URL_ = CF
-  ? `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`
+const OWN = (process.env.MAX_AI_URL || "").trim().replace(/\/+$/, "");
+const CF = !OWN && process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN;
+const GATEWAY = !OWN && !CF && (process.env.MAX_BRAIN === "gateway" || process.env.AI_GATEWAY_API_KEY);
+const FREE = !OWN && !CF && !GATEWAY;
+const MODELS = (process.env.MAX_MODEL || "").split(",").map((x) => x.trim()).filter(Boolean);
+const MODEL = MODELS[0] || (CF ? "@cf/meta/llama-3.3-70b-instruct-fp8-fast" : GATEWAY ? "anthropic/claude-haiku-5.5" : "openai-fast");
+const URL_ = OWN ? (/\/chat\/completions$/.test(OWN) ? OWN : OWN + "/chat/completions")
+  : CF ? `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`
   : GATEWAY ? "https://ai-gateway.vercel.sh/v1/chat/completions"
   : "https://text.pollinations.ai/openai";
 
@@ -103,6 +107,7 @@ function explain(status, detail) {
   try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
   const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
     : FREE ? "Max's free AI didn't answer. Try again in a moment."
+    : OWN ? (status === 401 || status === 403 ? "Max's AI key was refused. Check MAX_AI_KEY in Vercel." : status === 404 ? "Max's AI address or model name is wrong. Check MAX_AI_URL and MAX_MODEL in Vercel." : "Max's AI didn't answer. Try again in a moment.")
     : CF && /limit|neuron|quota/i.test(reason) ? "Max has used today's free AI. He'll be back tomorrow."
     : CF && (status === 401 || status === 403) ? "Max's Cloudflare token isn't working. Check CF_API_TOKEN and CF_ACCOUNT_ID in Vercel."
     : /credit|card|billing|payment|fund|quota/i.test(reason) || status === 402 ? "Max's AI needs a card in Vercel's AI Gateway tab, or remove MAX_BRAIN to use the free AI."
@@ -134,8 +139,9 @@ export default async function handler(req) {
   while (messages.length && messages[0].role !== "user") messages.shift();
   if (!messages.length || messages[messages.length - 1].role !== "user") return json(400, { error: "Send a message for Max to answer." });
 
-  const token = FREE ? "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
-  if (!FREE && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
+  const token = FREE ? "" : OWN ? process.env.MAX_AI_KEY || "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  if (OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });
+  if (!FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
   const hard = mode === "code" || mode === "site";
   const stop = new AbortController();
@@ -157,7 +163,7 @@ export default async function handler(req) {
       try {
         // Which models to try, strongest first. Code and website edits get the strongest ones.
         let tries = [MODEL];
-        if (process.env.MAX_MODEL) tries = [MODEL];
+        if (MODELS.length) tries = MODELS.slice(0, 4);
         else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
         else if (FREE) tries = await freeModels(hard);
 
