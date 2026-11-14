@@ -102,9 +102,13 @@ async function freeModels(hard) {
 export const config = { runtime: "edge" };
 
 // What an AI error means for the student.
-function explain(status, detail) {
+function explain(status, detail, mine) {
   let reason = "";
   try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
+  if (mine) return (status === 401 || status === 403 ? "Your AI router refused the key. Check the key in Max's settings."
+    : status === 404 ? "Your AI router doesn't know that address or model. Check them in Max's settings."
+    : status === 429 ? "Your AI router says it is busy or out of free use. Wait a bit and try again."
+    : "Your AI router didn't answer properly.") + (reason ? ` (it said: ${reason.slice(0, 200)})` : ` (error ${status})`);
   const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
     : FREE ? "Max's free AI didn't answer. Try again in a moment."
     : OWN ? (status === 401 || status === 403 ? "Max's AI key was refused. Check MAX_AI_KEY in Vercel." : status === 404 ? "Max's AI address or model name is wrong. Check MAX_AI_URL and MAX_MODEL in Vercel." : "Max's AI didn't answer. Try again in a moment.")
@@ -139,15 +143,27 @@ export default async function handler(req) {
   while (messages.length && messages[0].role !== "user") messages.shift();
   if (!messages.length || messages[messages.length - 1].role !== "user") return json(400, { error: "Send a message for Max to answer." });
 
-  const token = FREE ? "" : OWN ? process.env.MAX_AI_KEY || "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
-  if (OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });
-  if (!FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
+  // A brain the person connected inside Max's settings: their own AI router (OmniRoute, OpenRouter, ...).
+  let mine = null;
+  if (body.brain && typeof body.brain.url === "string" && body.brain.url.trim()) {
+    let u; try { u = new URL(body.brain.url.trim()); } catch { return json(400, { error: "That AI address isn't a valid web address. It should look like https://something/v1" }); }
+    const host = u.hostname;
+    if (u.protocol !== "https:" || !host.includes(".") || /^[\d.]+$/.test(host) || host.includes(":") || /\.(local|internal|lan|home)$/.test(host))
+      return json(400, { error: "Max's server can only reach an AI address on the internet that starts with https://. An address like localhost or 192.168… only works on your own network, so the router needs a public address first." });
+    const base = (u.origin + u.pathname).replace(/\/+$/, "");
+    mine = { url: /\/chat\/completions$/.test(base) ? base : base + "/chat/completions", key: String(body.brain.key || "").slice(0, 400),
+      models: String(body.brain.model || "auto").split(",").map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 4) };
+    if (!mine.models.length) mine.models = ["auto"];
+  }
+  const token = mine ? mine.key : FREE ? "" : OWN ? process.env.MAX_AI_KEY || "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  if (!mine && OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });
+  if (!mine && !FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
   const hard = mode === "code" || mode === "site";
   const stop = new AbortController();
   req.signal?.addEventListener("abort", () => stop.abort());
   const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : 1500;
-  const ask = (model, extra = {}) => fetch(URL_, {
+  const ask = (model, extra = {}) => fetch(mine ? mine.url : URL_, {
     method: "POST", signal: stop.signal,
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
     body: JSON.stringify({ model, stream: true, max_tokens: room, ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
@@ -164,7 +180,8 @@ export default async function handler(req) {
       try {
         // Which models to try, strongest first. Code and website edits get the strongest ones.
         let tries = [MODEL];
-        if (MODELS.length) tries = MODELS.slice(0, 4);
+        if (mine) tries = mine.models;
+        else if (MODELS.length) tries = MODELS.slice(0, 4);
         else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
         else if (FREE) tries = await freeModels(hard);
 
@@ -176,8 +193,8 @@ export default async function handler(req) {
           const retry = Object.keys(extra).length > 0;
           if (retry && skipRetries !== model) continue; // retries only follow an empty, thought-out answer
           let up;
-          try { up = await ask(model, extra); } catch (e) { if (stop.signal.aborted) return; lastError = "Max's server couldn't reach his AI. Try again."; continue; }
-          if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => "")); continue; }
+          try { up = await ask(model, extra); } catch (e) { if (stop.signal.aborted) return; lastError = mine ? "Max's server couldn't reach your AI router. Check that its address is right and that it is running." : "Max's server couldn't reach his AI. Try again."; continue; }
+          if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => ""), mine); continue; }
           note({ model: model.replace(/[^\w./@-]/g, "") });
           const reader = up.body.getReader(), dec = new TextDecoder();
           let buf = "", all = "", thought = false, cut = false;
@@ -202,7 +219,7 @@ export default async function handler(req) {
             }
           }
           if (!wrote) { // some services answer in one piece instead of a stream
-            try { const j = JSON.parse(all); const text = j.choices?.[0]?.message?.content; if (typeof text === "string" && text) { out.enqueue(enc.encode(text)); wrote = true; } else if (j.error) lastError = explain(500, all); } catch {}
+            try { const j = JSON.parse(all); const text = j.choices?.[0]?.message?.content; if (typeof text === "string" && text) { out.enqueue(enc.encode(text)); wrote = true; } else if (j.error) lastError = explain(500, all, mine); } catch {}
           }
           if (wrote) { if (cut) note({ cut: 1 }); return; }
           if (thought || cut) skipRetries = model; // worth another try with less thinking

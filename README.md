@@ -68,7 +68,10 @@ No key, no card. It is run by someone else, so it can be slow or busy at times, 
 
 ### Optional: your own AI router or provider (stronger models)
 
-Max can use anything that speaks the OpenAI chat format: an [OmniRoute](https://github.com/diegosouzapw/OmniRoute)
+The quick way, for one person: open Max's settings (top right), set **Max's brain** to **My own AI
+router**, and enter the router's address, key and model. It is kept in that browser only.
+
+For everyone who uses this copy of Max: Max can use anything that speaks the OpenAI chat format: an [OmniRoute](https://github.com/diegosouzapw/OmniRoute)
 server you run, OpenRouter, Groq, and others. In Vercel's Environment Variables set:
 
 - `MAX_AI_URL`: the service's address ending in `/v1` (for example `https://openrouter.ai/api/v1`)

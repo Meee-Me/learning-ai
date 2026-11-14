@@ -85,6 +85,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .popover { position: absolute; top: 52px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 20; width: min(320px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .popover label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .popover select, .popover input { font: 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+#brainOwn { display: flex; flex-direction: column; gap: 10px; }
 .popover .hint { font-size: 12px; color: var(--muted); margin: 0; }
 
 .scroller { flex: 1; overflow-y: auto; min-height: 0; }
@@ -311,6 +312,18 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
       <label>Subject (optional)
         <input id="subject" type="text" placeholder="e.g. fractions, biology, Python">
       </label>
+      <label>Max's brain
+        <select id="brainKind">
+          <option value="free">Free AI (no setup)</option>
+          <option value="own">My own AI router (OmniRoute, OpenRouter…)</option>
+        </select>
+      </label>
+      <div id="brainOwn" hidden>
+        <label>Address <input id="brainUrl" type="text" placeholder="https://…/v1" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        <label>Key <input id="brainKey" type="password" placeholder="The router's API key" autocomplete="off"></label>
+        <label>Model <input id="brainModel" type="text" placeholder="auto" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        <p class="hint">The address must be on the internet (https), not localhost. The key stays in this browser and is sent only through Max's server to your router.</p>
+      </div>
     </div>
 
     <div class="scroller" id="scroller">
@@ -821,7 +834,7 @@ async function respond(opts = {}) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, voice: !!opts.voice, site: prefs.mode === "site" && site ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
+      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, brain: brain.kind === "own" && brain.url ? { url: brain.url, key: brain.key, model: brain.model || "auto" } : undefined, voice: !!opts.voice, site: prefs.mode === "site" && site ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -1455,6 +1468,12 @@ document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.t
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("runner").hidden) $("runClose").click(); if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
 $("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
 $("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
+// Max's brain: the free AI, or the person's own AI router. Kept in this browser only (it holds a key).
+let brain = store.get("max.brain", { kind: "free", url: "", key: "", model: "" });
+function brainUI() { $("brainKind").value = brain.kind; $("brainOwn").hidden = brain.kind !== "own"; $("brainUrl").value = brain.url; $("brainKey").value = brain.key; $("brainModel").value = brain.model; }
+const brainSave = () => { brain = { kind: $("brainKind").value, url: $("brainUrl").value.trim(), key: $("brainKey").value.trim(), model: $("brainModel").value.trim() }; store.set("max.brain", brain); $("brainOwn").hidden = brain.kind !== "own"; };
+["brainKind", "brainUrl", "brainKey", "brainModel"].forEach((id) => { $(id).onchange = brainSave; $(id).oninput = brainSave; });
+brainUI();
 
 const isPhone = () => matchMedia("(max-width: 820px)").matches;
 function closeSideOnPhone() { shell.classList.remove("side-open"); }
