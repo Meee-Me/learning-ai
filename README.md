@@ -5,6 +5,8 @@ Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
 - **Teach me**: explains one small step at a time, then checks you understood.
 - **Quiz me**: asks one question at a time and keeps score.
 - **Hints only**: never gives the final answer; nudges you to solve it yourself.
+- **Code**: writes complete, working code. Web pages and JavaScript get a **Run** button that runs
+  them right in the page (in a sandbox); every code block has a Copy button.
 
 ## Features
 

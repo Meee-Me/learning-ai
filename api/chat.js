@@ -17,11 +17,21 @@ const URL_ = CF
 const MODES = {
   teach: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding.",
   quiz: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3).",
+  code: "CODE",
   hint: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work.",
 };
 const LEVELS = ["Kid (8–11)", "Middle school", "High school", "College", "Adult beginner"];
 
-const system = (subject, level, mode) => `You are Max, a warm, patient, encouraging tutor. Student level: ${level}.${subject ? " Subject: " + subject + "." : ""}
+const CODER = (subject, level) => `You are Max, a friendly tutor who is also a skilled programmer. Student level: ${level}.${subject ? " Subject: " + subject + "." : ""}
+When asked to build or fix something, write complete, working, runnable code, not fragments or placeholders.
+- Put code in fenced blocks with the language name, like \`\`\`python.
+- For anything that runs in a browser (a web page, game, animation, calculator), give ONE self-contained file in a single \`\`\`html block, with its CSS and JavaScript inside it and no outside libraries or images. The student can press Run to try it, so it must work as is and fit a phone screen.
+- For plain JavaScript, use console.log to show results; the student can press Run to see them.
+- After the code, explain how it works in 2 to 4 short sentences for the student's level, and suggest one thing to try changing.
+- When the student shares broken code, say what the bug is, then give the full corrected code.
+If the student attached a file, its text is in their message between <file> tags.`;
+
+const system = (subject, level, mode) => mode === "code" ? CODER(subject, level) : `You are Max, a warm, patient, encouraging tutor. Student level: ${level}.${subject ? " Subject: " + subject + "." : ""}
 Mode: ${MODES[mode]}
 Rules: keep replies short (usually under 150 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Use simple Markdown only (bold, lists, \`code\`, code blocks); no tables or LaTeX, write math in plain text like 3x + 5 = 20. If the student attached a file, its text is in their message between <file> tags: use it to teach them. If you are not sure about a fact, say so.`;
 
@@ -58,9 +68,10 @@ export default async function handler(req, res) {
   const ask = (model) => fetch(URL_, {
     method: "POST",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : 1200, messages: [{ role: "system", content: system(subject, level, mode) + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode) + (body.voice ? VOICE : "") }, ...messages] }),
   }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
-  let upstream = await ask(MODEL);
+  // Code needs the stronger model, not the fast one.
+  let upstream = await ask(FREE && mode === "code" && !process.env.MAX_MODEL ? "openai" : MODEL);
   // The free service's fast model can be missing or busy: fall back to its standard one.
   if (FREE && !upstream.ok && MODEL !== "openai") upstream = await ask("openai");
 

@@ -118,6 +118,17 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .body code { font-family: var(--font-mono); font-size: 13px; background: var(--hover); padding: 1px 5px; border-radius: 5px; }
 .body pre { font-family: var(--font-mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); padding: 12px; border-radius: 10px; overflow-x: auto; margin: 8px 0; }
 .body pre code { background: none; padding: 0; }
+.codeblock { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 8px 0; background: var(--surface); }
+.codeblock pre { border: 0; border-radius: 0; margin: 0; max-height: 420px; overflow: auto; }
+.codehead { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 12px; background: var(--hover); font: 600 12px var(--font-mono); color: var(--muted); }
+.codehead .grow { flex: 1; }
+.codehead button { border: 0; background: none; font: 600 12px var(--font-body); color: var(--ink); padding: 4px 9px; border-radius: 6px; cursor: pointer; }
+.codehead button:hover { background: var(--surface); }
+.codehead button[data-cb="run"] { background: var(--accent); color: var(--accent-ink); }
+.runner { position: absolute; inset: 0; z-index: 26; background: var(--bg); display: flex; flex-direction: column; }
+.runbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 600; }
+.runbar .grow { flex: 1; }
+.runner iframe { flex: 1; width: 100%; border: 0; background: #fff; }
 .thinking { color: var(--muted); font-style: italic; }
 .thinking::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite ease-in-out; vertical-align: middle; }
 @keyframes pulse { 50% { opacity: .2; } }
@@ -252,12 +263,13 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <button type="button" data-mode="teach" aria-pressed="true">Teach me</button>
             <button type="button" data-mode="quiz" aria-pressed="false">Quiz me</button>
             <button type="button" data-mode="hint" aria-pressed="false">Hints only</button>
+            <button type="button" data-mode="code" aria-pressed="false">Code</button>
           </div>
           <div class="starters" id="starters">
             <button type="button" data-mode="teach">Explain photosynthesis<span>Simply, with an example</span></button>
             <button type="button" data-mode="hint">Help me solve 3x + 5 = 20<span>Hints only, no answer</span></button>
             <button type="button" data-mode="quiz">Quiz me on the planets<span>One question at a time</span></button>
-            <button type="button" data-mode="teach">What is a variable in coding?<span>For a beginner</span></button>
+            <button type="button" data-mode="code">Make a tic-tac-toe game<span>Max writes it, you run it</span></button>
           </div>
         </section>
         <div class="thread" id="thread"></div>
@@ -282,6 +294,12 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
         <p class="foot">Max can make mistakes. Check important answers.</p>
       </div>
     </div>
+    <section class="runner" id="runner" hidden aria-label="Running Max's code">
+      <div class="runbar"><span>Running Max's code</span><span class="grow"></span>
+        <button class="iconbtn" id="rerun" type="button" aria-label="Run again" title="Run again"><svg><use href="#i-redo"/></svg></button>
+        <button class="iconbtn" id="runClose" type="button" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <iframe id="runFrame" sandbox="allow-scripts allow-modals" title="Code preview"></iframe>
+    </section>
     <section class="voice" id="voice" hidden aria-label="Talk to Max">
       <p class="vstate" id="vstate" aria-live="polite">Listening…</p>
       <button class="orb" id="orb" type="button" data-state="listening" aria-label="Tap to interrupt Max">
@@ -308,6 +326,7 @@ const MAX_FILE_MB = 25;
 const MODES = {
   teach: { label: "Teach me", rule: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding." },
   quiz:  { label: "Quiz me", rule: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3)." },
+  code:  { label: "Code", rule: "CODE. Write complete, working code." },
   hint:  { label: "Hints only", rule: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work." },
 };
 const systemPrompt = (c) => `You are Max, a warm, patient, encouraging tutor. Student level: ${c.level}.${c.subject ? " Subject: " + c.subject + "." : ""}
@@ -393,8 +412,16 @@ const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, 
 const inline = (s) => s.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
 function md(src) {
   let html = "";
-  esc(src).split(/```/).forEach((part, i) => {
-    if (i % 2) { html += "<pre><code>" + part.replace(/^[\w+-]*\n/, "") + "</code></pre>"; return; }
+  const parts = esc(src).split(/```/);
+  parts.forEach((part, i) => {
+    if (i % 2) {
+      const lang = (part.match(/^([\w+#-]*)\n/) || [])[1] || "", closed = i < parts.length - 1;
+      const runnable = closed && /^(html|js|javascript)$/i.test(lang);
+      html += `<div class="codeblock" data-lang="${lang.toLowerCase()}"><div class="codehead"><span>${lang || "code"}</span><span class="grow"></span>` +
+        (runnable ? `<button type="button" data-cb="run">▶ Run</button>` : "") + (closed ? `<button type="button" data-cb="copy">Copy</button>` : "") +
+        `</div><pre><code>${part.replace(/^[\w+#-]*\n/, "")}</code></pre></div>`;
+      return;
+    }
     let list = null, para = [];
     const fp = () => { if (para.length) { html += "<p>" + inline(para.join("<br>")) + "</p>"; para = []; } };
     const fl = () => { if (list) { html += `</${list}>`; list = null; } };
@@ -539,7 +566,30 @@ $("history").addEventListener("click", (e) => {
   }
   current = chats.find((c) => c.id === id); renderThread(); renderHistory(); closeSideOnPhone();
 });
+let lastRun = "";
+function runCode(lang, code) {
+  if (lang !== "html") {
+    // plain JavaScript: show what it prints
+    code = `<!doctype html><meta charset="utf-8"><body style="font:14px/1.5 ui-monospace,Menlo,monospace;margin:14px;white-space:pre-wrap"><script>
+const out=(t,c)=>{const d=document.createElement("div");d.textContent=t;if(c)d.style.color=c;document.body.appendChild(d)};
+const show=(a)=>a.map(x=>typeof x==="object"?JSON.stringify(x,null,1):String(x)).join(" ");
+console.log=console.info=(...a)=>out(show(a));console.warn=(...a)=>out(show(a),"#b58900");console.error=(...a)=>out(show(a),"#c2413b");
+window.onerror=(m)=>out("Error: "+m,"#c2413b");
+<\/script><script>${code.replace(/<\/script/gi, "<\\/script")}\n<\/script><script>if(!document.body.querySelector("div"))out("(The code ran and printed nothing.)","#888")<\/script>`;
+  }
+  lastRun = code; $("runFrame").srcdoc = code; $("runner").hidden = false;
+}
+$("runClose").onclick = () => { $("runner").hidden = true; $("runFrame").srcdoc = ""; };
+$("rerun").onclick = () => { $("runFrame").srcdoc = ""; setTimeout(() => ($("runFrame").srcdoc = lastRun), 30); };
 thread.addEventListener("click", async (e) => {
+  const cb = e.target.closest("[data-cb]");
+  if (cb) {
+    const block = cb.closest(".codeblock"), code = block.querySelector("code").textContent;
+    if (cb.dataset.cb === "run") return runCode(block.dataset.lang, code);
+    try { await navigator.clipboard.writeText(code); cb.textContent = "Copied"; setTimeout(() => (cb.textContent = "Copy"), 1500); }
+    catch { const r = document.createRange(); r.selectNodeContents(block.querySelector("code")); getSelection().removeAllRanges(); getSelection().addRange(r); }
+    return;
+  }
   const b = e.target.closest("[data-act]"); if (!b) return;
   const i = +b.closest(".turn-max").dataset.index;
   if (b.dataset.act === "copy") {
@@ -726,7 +776,7 @@ $("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexO
 const pop = $("popover"), setBtn = $("settingsBtn");
 setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
 document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== setBtn) { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); } });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("runner").hidden) $("runClose").click(); if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
 $("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
 $("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
 
