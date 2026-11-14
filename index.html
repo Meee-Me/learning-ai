@@ -830,15 +830,22 @@ async function respond(opts = {}) {
     }
     usedModel = res.headers.get("X-Max-Model") || "";
     const reader = res.body.getReader(), dec = new TextDecoder();
+    let raw = "", serverError = "";
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      answer += dec.decode(value, { stream: true });
+      raw += dec.decode(value, { stream: true });
+      // The server tucks notes (model name, errors, keep-alive pings) into the text between \u0001 marks.
+      for (const m of raw.matchAll(/\u0001([^\u0001]*)\u0001/g)) { try { const n = JSON.parse(m[1]); if (n.model) usedModel = n.model; if (n.error) serverError = n.error; if (n.cut) serverError = "Max ran out of room and stopped early. Ask him to continue."; } catch {} }
+      const text = raw.replace(/\u0001[^\u0001]*\u0001/g, "").replace(/\u0001[^\u0001]*$/, "");
+      if (text === answer) continue;
+      answer = text;
       const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
       out.innerHTML = md(answer);
       if (near) scroller.scrollTop = scroller.scrollHeight;
       opts.onText?.(answer);
     }
+    if (serverError) { if (!answer.trim()) throw new Error(serverError); setStatus(serverError); }
     if (!answer.trim() && !ctl.signal.aborted) throw new Error("Max didn't say anything. Try again.");
   } catch (e) {
     const msg = String(e?.message || e);

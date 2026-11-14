@@ -81,7 +81,7 @@ the team to unlock its free AI credit.
 ```
 index.html     the whole app
 api/chat.js    Vercel function: the cloud brain
-package.json   @vercel/oidc (lets the function use AI Gateway without an API key)
+api/github.js  Vercel function: Connect GitHub sign-in
 ```
 
 ## Deploy on Vercel

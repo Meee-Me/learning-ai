@@ -3,7 +3,6 @@
 //  - Cloudflare Workers AI: used when CF_ACCOUNT_ID and CF_API_TOKEN are set in Vercel.
 //  - Vercel AI Gateway (Claude Haiku 5.5): used when MAX_BRAIN=gateway or AI_GATEWAY_API_KEY
 //    is set. Needs a card on the Vercel team.
-import { getVercelOidcToken } from "@vercel/oidc";
 
 const CF = process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN;
 const GATEWAY = !CF && (process.env.MAX_BRAIN === "gateway" || process.env.AI_GATEWAY_API_KEY);
@@ -95,10 +94,28 @@ async function freeModels(hard) {
   return [...new Set([...picked, "openai"])].slice(0, 4);
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
+// Runs at the edge so a long answer (a whole web page) can keep streaming for minutes.
+export const config = { runtime: "edge" };
 
-  const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+// What an AI error means for the student.
+function explain(status, detail) {
+  let reason = "";
+  try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
+  const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
+    : FREE ? "Max's free AI didn't answer. Try again in a moment."
+    : CF && /limit|neuron|quota/i.test(reason) ? "Max has used today's free AI. He'll be back tomorrow."
+    : CF && (status === 401 || status === 403) ? "Max's Cloudflare token isn't working. Check CF_API_TOKEN and CF_ACCOUNT_ID in Vercel."
+    : /credit|card|billing|payment|fund|quota/i.test(reason) || status === 402 ? "Max's AI needs a card in Vercel's AI Gateway tab, or remove MAX_BRAIN to use the free AI."
+    : status === 401 || status === 403 ? "Max's server isn't allowed to use AI Gateway yet. Open the AI Gateway tab in Vercel and turn it on."
+    : "Max's server didn't get an answer. Try again.";
+  return msg + (reason ? ` (the AI service said: ${reason.slice(0, 200)})` : ` (error ${status})`);
+}
+
+export default async function handler(req) {
+  const json = (status, obj) => new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  if (req.method !== "POST") return json(405, { error: "Use POST." });
+
+  const body = await req.json().catch(() => ({}));
   const mode = MODES[body.mode] ? body.mode : "teach";
   const level = LEVELS.includes(body.level) ? body.level : "High school";
   const subject = String(body.subject || "").slice(0, 80);
@@ -115,75 +132,75 @@ export default async function handler(req, res) {
     messages.unshift({ role: m.role, content });
   }
   while (messages.length && messages[0].role !== "user") messages.shift();
-  if (!messages.length || messages[messages.length - 1].role !== "user") {
-    return res.status(400).json({ error: "Send a message for Max to answer." });
-  }
+  if (!messages.length || messages[messages.length - 1].role !== "user") return json(400, { error: "Send a message for Max to answer." });
 
-  let token;
-  try {
-    token = FREE ? "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || (await getVercelOidcToken());
-  } catch {
-    return res.status(500).json({ error: "Max's cloud brain isn't set up: this must run on Vercel (or set AI_GATEWAY_API_KEY)." });
-  }
+  const token = FREE ? "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  if (!FREE && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
-  const ask = (model) => fetch(URL_, {
-    method: "POST",
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "site" ? 12000 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
-  }).catch((e) => ({ ok: false, status: 502, text: async () => String(e) }));
-  // Which models to try, strongest first. Code and website edits get the strongest ones.
   const hard = mode === "code" || mode === "site";
-  let tries = [MODEL];
-  if (process.env.MAX_MODEL) tries = [MODEL];
-  else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
-  else if (FREE) tries = await freeModels(hard);
-  let upstream, used = "";
-  for (const model of tries) {
-    upstream = await ask(model);
-    used = model;
-    if (upstream.ok && upstream.body) break;
-  }
+  const stop = new AbortController();
+  req.signal?.addEventListener("abort", () => stop.abort());
+  const ask = (model) => fetch(URL_, {
+    method: "POST", signal: stop.signal,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
+    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "site" ? 8000 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
+  });
 
-  if (!upstream.ok || !upstream.body) {
-    const detail = await upstream.text().catch(() => "");
-    console.error("AI error", upstream.status, detail.slice(0, 500));
-    let reason = "";
-    try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || ""; } catch { reason = detail.slice(0, 300); }
-    const msg = upstream.status === 429 && !/credit|billing|payment|fund/i.test(reason) ? "Max is getting a lot of questions right now. Wait a moment and try again."
-      : FREE ? (upstream.status === 429 ? "Max's free AI is busy. Wait a few seconds and try again." : "Max's free AI didn't answer. Try again in a moment.")
-      : CF && /limit|neuron|quota/i.test(reason) ? "Max has used today's free AI. He'll be back tomorrow."
-      : CF && (upstream.status === 401 || upstream.status === 403) ? "Max's Cloudflare token isn't working. Check CF_API_TOKEN and CF_ACCOUNT_ID in Vercel."
-      : /credit|card|billing|payment|fund|quota/i.test(reason) || upstream.status === 402 ? "Max needs free AI set up. Add CF_ACCOUNT_ID and CF_API_TOKEN in Vercel (see the README), or add a card in Vercel's AI Gateway tab."
-      : upstream.status === 401 || upstream.status === 403 ? "Max's server isn't allowed to use AI Gateway yet. Open the AI Gateway tab in Vercel and turn it on."
-      : "Max's server didn't get an answer. Try again.";
-    return res.status(502).json({ error: msg + (reason ? ` (Vercel said: ${reason.slice(0, 200)})` : ` (error ${upstream.status})`) });
-  }
+  // The answer is sent as plain text. Notes for the page (which model, errors, keep-alive pings) travel
+  // inside it as small JSON records wrapped in \u0001 characters, which the page takes back out.
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(out) {
+      const note = (o) => { try { out.enqueue(enc.encode("\u0001" + JSON.stringify(o) + "\u0001")); } catch {} };
+      const ping = setInterval(() => note({ ping: 1 }), 8000); // keeps the connection open while the AI thinks
+      let wrote = false, lastError = "";
+      try {
+        // Which models to try, strongest first. Code and website edits get the strongest ones.
+        let tries = [MODEL];
+        if (process.env.MAX_MODEL) tries = [MODEL];
+        else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
+        else if (FREE) tries = await freeModels(hard);
 
-  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Max-Model": used.replace(/[^\w./@-]/g, "") });
-  const reader = upstream.body.getReader();
-  const dec = new TextDecoder();
-  let buf = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line.startsWith("data:")) continue;
-        const data = line.slice(5).trim();
-        if (data === "[DONE]") continue;
-        try {
-          const text = JSON.parse(data).choices?.[0]?.delta?.content;
-          if (text) res.write(text);
-        } catch {}
-      }
-    }
-  } catch (e) {
-    console.error("stream error", e);
-    res.write("\n\n⚠️ Max got cut off. Try again.");
-  }
-  res.end();
+        for (const model of tries) {
+          let up;
+          try { up = await ask(model); } catch (e) { if (stop.signal.aborted) return; lastError = "Max's server couldn't reach his AI. Try again."; continue; }
+          if (!up.ok || !up.body) { lastError = explain(up.status, await up.text().catch(() => "")); continue; }
+          note({ model: model.replace(/[^\w./@-]/g, "") });
+          const reader = up.body.getReader(), dec = new TextDecoder();
+          let buf = "", all = "", thought = false, cut = false;
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = dec.decode(value, { stream: true });
+            buf += chunk; if (all.length < 400000) all += chunk;
+            let nl;
+            while ((nl = buf.indexOf("\n")) >= 0) {
+              const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+              if (!line.startsWith("data:")) continue;
+              const data = line.slice(5).trim();
+              if (data === "[DONE]") continue;
+              try {
+                const c = JSON.parse(data).choices?.[0];
+                const text = c?.delta?.content ?? c?.message?.content;
+                if (c?.delta?.reasoning_content || c?.delta?.reasoning) thought = true;
+                if (c?.finish_reason === "length") cut = true;
+                if (typeof text === "string" && text) { out.enqueue(enc.encode(text)); wrote = true; }
+              } catch {}
+            }
+          }
+          if (!wrote) { // some services answer in one piece instead of a stream
+            try { const j = JSON.parse(all); const text = j.choices?.[0]?.message?.content; if (typeof text === "string" && text) { out.enqueue(enc.encode(text)); wrote = true; } else if (j.error) lastError = explain(500, all); } catch {}
+          }
+          if (wrote) { if (cut) note({ cut: 1 }); return; }
+          lastError ||= thought || cut ? "Max's AI ran out of room before it could answer. Ask for something smaller, one step at a time." : "Max's AI sent back an empty answer. Try again, or ask for something smaller.";
+          console.error("empty answer from", model);
+        }
+        note({ error: lastError || "Max's AI didn't answer. Try again in a moment." });
+      } catch (e) {
+        if (!stop.signal.aborted) { console.error("stream error", e); note({ error: wrote ? "Max got cut off. Ask him to continue." : "Max's server had a problem. Try again." }); }
+      } finally { clearInterval(ping); try { out.close(); } catch {} }
+    },
+    cancel() { stop.abort(); },
+  });
+  return new Response(stream, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no" } });
 }
