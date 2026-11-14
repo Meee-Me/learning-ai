@@ -146,10 +146,11 @@ export default async function handler(req) {
   const hard = mode === "code" || mode === "site";
   const stop = new AbortController();
   req.signal?.addEventListener("abort", () => stop.abort());
-  const ask = (model) => fetch(URL_, {
+  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : 1500;
+  const ask = (model, extra = {}) => fetch(URL_, {
     method: "POST", signal: stop.signal,
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model, stream: true, max_tokens: body.voice ? 300 : mode === "site" ? 8000 : mode === "code" ? 6000 : 1200, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model, stream: true, max_tokens: room, ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
   });
 
   // The answer is sent as plain text. Notes for the page (which model, errors, keep-alive pings) travel
@@ -167,10 +168,16 @@ export default async function handler(req) {
         else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
         else if (FREE) tries = await freeModels(hard);
 
-        for (const model of tries) {
+        // Some models think silently first and can use up all their room before writing anything.
+        // When that happens, ask the same model again with less thinking and more room.
+        const plan = tries.flatMap((model) => [[model, {}], [model, { reasoning_effort: "low", max_tokens: Math.max(room * 2, 8000) }], [model, { max_tokens: Math.max(room * 3, 12000) }]]);
+        let skipRetries = "";
+        for (const [model, extra] of plan) {
+          const retry = Object.keys(extra).length > 0;
+          if (retry && skipRetries !== model) continue; // retries only follow an empty, thought-out answer
           let up;
-          try { up = await ask(model); } catch (e) { if (stop.signal.aborted) return; lastError = "Max's server couldn't reach his AI. Try again."; continue; }
-          if (!up.ok || !up.body) { lastError = explain(up.status, await up.text().catch(() => "")); continue; }
+          try { up = await ask(model, extra); } catch (e) { if (stop.signal.aborted) return; lastError = "Max's server couldn't reach his AI. Try again."; continue; }
+          if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => "")); continue; }
           note({ model: model.replace(/[^\w./@-]/g, "") });
           const reader = up.body.getReader(), dec = new TextDecoder();
           let buf = "", all = "", thought = false, cut = false;
@@ -198,7 +205,8 @@ export default async function handler(req) {
             try { const j = JSON.parse(all); const text = j.choices?.[0]?.message?.content; if (typeof text === "string" && text) { out.enqueue(enc.encode(text)); wrote = true; } else if (j.error) lastError = explain(500, all); } catch {}
           }
           if (wrote) { if (cut) note({ cut: 1 }); return; }
-          lastError ||= thought || cut ? "Max's AI ran out of room before it could answer. Ask for something smaller, one step at a time." : "Max's AI sent back an empty answer. Try again, or ask for something smaller.";
+          if (thought || cut) skipRetries = model; // worth another try with less thinking
+          lastError = thought || cut ? "Max's AI ran out of room before it could answer. Ask for something smaller, one step at a time." : "Max's AI sent back an empty answer. Try again, or ask for something smaller.";
           console.error("empty answer from", model);
         }
         note({ error: lastError || "Max's AI didn't answer. Try again in a moment." });
