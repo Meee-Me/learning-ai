@@ -151,6 +151,10 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .picklist label:last-child { border-bottom: 0; }
 .picklist input { width: auto; }
 .picklist .none { padding: 12px; color: var(--muted); font-size: 13px; }
+.stepline { font-size: 13px; color: var(--muted); padding-left: 40px; margin-block: -10px; overflow-wrap: anywhere; }
+.puball { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.puball .pubnote { border: 0; padding: 0; flex: 1; min-width: 200px; }
+.puball .btn.warn { background: var(--danger); color: var(--surface); }
 .codehead button[data-cb="publish"] { background: var(--ink); color: var(--bg); }
 .codehead button[data-cb="publish"].warn { background: var(--danger); color: var(--surface); }
 .codehead button:disabled { opacity: .6; cursor: default; }
@@ -443,7 +447,7 @@ const dirty = new Set();
 let pushTimer = 0, prefsTimer = 0, synced = false;
 function slim(c) {
   return { id: c.id, title: c.title, created: c.created, updated: c.updated || c.created,
-    messages: c.messages.map((m) => ({ role: m.role, content: m.content, model: m.model, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
+    messages: c.messages.map((m) => ({ role: m.role, content: m.content, model: m.model, auto: m.auto, step: m.step, notes: m.notes, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
 }
 function cloudSave(c) {
   if (!signedIn() || !c.messages.length) return;
@@ -610,6 +614,13 @@ main.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; veil.h
 /* ---------- rendering ---------- */
 const svg = (id) => `<svg><use href="#i-${id}"/></svg>`;
 function renderMessage(m, i) {
+  if (m.step) { const el = document.createElement("div"); el.hidden = true; return el; } // "READ: …" requests are shown by the next line instead
+  if (m.auto) {
+    const el = document.createElement("div"); el.className = "stepline";
+    const names = (m.files || []).map((f) => f.name);
+    el.textContent = (names.length ? "📂 Max opened " + names.join(", ") : "📂 Max tried to open a file") + (m.notes?.length ? " · " + m.notes.join(" · ") : "");
+    return el;
+  }
   if (m.role === "user") {
     const el = document.createElement("div"); el.className = "turn-user";
     if (m.files?.length) el.insertAdjacentHTML("beforeend", `<div class="files">${m.files.map((f) => chipHTML(f, false)).join("")}</div>`);
@@ -620,6 +631,8 @@ function renderMessage(m, i) {
   el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}${m.model ? `<span class="brain" title="The AI model that wrote this answer">${esc(m.model)}</span>` : ""}</div></div>`;
   el.querySelector(".text").innerHTML = md(m.content);
   el.dataset.index = i;
+  const nFiles = el.querySelectorAll(".codeblock[data-path]").length;
+  if (nFiles > 1) el.querySelector(".text").insertAdjacentHTML("beforeend", `<div class="puball"><button class="btn" type="button" data-cb="publishall">Publish all ${nFiles} files</button><span class="pubnote"></span></div>`);
   return el;
 }
 function renderThread() {
@@ -662,6 +675,7 @@ $("runClose").onclick = () => { $("runner").hidden = true; $("runFrame").srcdoc 
 $("rerun").onclick = () => { $("runFrame").srcdoc = ""; setTimeout(() => ($("runFrame").srcdoc = lastRun), 30); };
 thread.addEventListener("click", async (e) => {
   const cb = e.target.closest("[data-cb]");
+  if (cb?.dataset.cb === "publishall") return publishAll(cb, cb.closest(".turn-max"));
   if (cb) {
     const block = cb.closest(".codeblock"), code = block.querySelector("code").textContent;
     if (cb.dataset.cb === "run") return runCode(block.dataset.lang, code);
@@ -694,11 +708,12 @@ function updateSend() {
   sendBtn.setAttribute("aria-label", busy ? "Stop" : "Send");
 }
 function modelMessages() {
-  const msgs = current.messages.slice(-10), lastUser = msgs.map((m) => m.role).lastIndexOf("user");
+  const msgs = current.messages.slice(-16);
+  let task = 0; msgs.forEach((m, i) => { if (m.role === "user" && !m.auto) task = i; }); // where the current request starts
   return msgs.map((m, i) => {
     if (m.role !== "user" || !m.files?.length) return { role: m.role, content: m.content };
-    // Website files are re-read fresh for every question, so older copies are left out.
-    const docs = m.files.filter((f) => f.text && (f.kind !== "site" || i === lastUser)).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
+    // Website files are read fresh for every request, so copies from older requests are left out.
+    const docs = m.files.filter((f) => f.text && (f.kind !== "site" || i >= task)).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
     return { role: "user", content: `${docs}\n\n${m.content || "Please help me understand this file."}` };
   });
 }
@@ -748,9 +763,12 @@ async function respond(opts = {}) {
     const msg = String(e?.message || e);
     if (e.name !== "AbortError") { const shown = /failed to fetch|load failed|network/i.test(msg) ? (answer.trim() ? "Max got cut off before he finished. Ask him to continue." : "Max couldn't reach his server. Check your internet and try again.") : msg; setStatus(shown); opts.onError?.(shown); }
   }
-  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel });
+  const stopped = !!ctl?.signal.aborted;
+  const wants = !stopped && prefs.mode === "site" && site ? parseReads(answer) : [];
+  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel, ...(wants.length ? { step: true } : {}) });
   busy = false; ctl = null;
   renderThread(); saveChats(current); updateSend();
+  if (wants.length) return agentRead(wants, opts);
   return answer.trim();
 }
 
@@ -783,11 +801,9 @@ async function siteLoadTree() {
   const t = await (await gh(`/repos/${site.repo}/git/trees/${encodeURIComponent(site.branch)}?recursive=1`)).json();
   site.tree = (t.tree || []).filter((x) => x.type === "blob" && TEXTY.test(x.path) && !/(^|\/)(node_modules|\.git|dist|build|vendor)\//.test(x.path) && !/package-lock\.json$|\.min\./.test(x.path)).map((x) => x.path);
   site.picked = (site.picked || []).filter((p) => site.tree.includes(p));
-  if (!site.picked.length) { const first = site.tree.find((p) => /^(public\/)?index\.html$/.test(p)); if (first) site.picked = [first]; }
   saveSite();
 }
 async function siteFilesForSend() {
-  if (!site.picked?.length) throw new Error("Pick at least one file for Max to see (tap + File).");
   const out = []; let total = 0;
   for (const path of site.picked) {
     const f = await ghRead(path);
@@ -803,7 +819,7 @@ function renderSite() {
   $("siteBar").hidden = !(site && prefs.mode === "site");
   if (!site) return;
   $("siteLabel").textContent = "Editing " + site.repo + ":";
-  $("siteFiles").innerHTML = (site.picked || []).map((p) => `<span class="chip" data-path="${esc(p)}"><b title="${esc(p)}">${esc(p)}</b><button class="iconbtn x" type="button" aria-label="Remove ${esc(p)}">${svg("x")}</button></span>`).join("") || "no files picked";
+  $("siteFiles").innerHTML = (site.picked || []).map((p) => `<span class="chip" data-path="${esc(p)}"><b title="${esc(p)}">${esc(p)}</b><button class="iconbtn x" type="button" aria-label="Remove ${esc(p)}">${svg("x")}</button></span>`).join("") || "Max opens the files he needs";
 }
 function openSiteDlg() {
   $("siteRepo").value = site?.repo || ""; $("siteToken").value = site?.token || "";
@@ -839,6 +855,71 @@ $("siteAdd").onclick = async () => { $("pickFilter").value = ""; $("pickDlg").hi
 $("pickFilter").oninput = renderPick;
 $("pickList").addEventListener("change", (e) => { const v = e.target.value; site.picked = e.target.checked ? [...new Set([...site.picked, v])] : site.picked.filter((p) => p !== v); saveSite(); });
 $("pickDone").onclick = () => { $("pickDlg").hidden = true; renderSite(); };
+// Max asks for files with a line like "READ: index.html, css/style.css".
+function parseReads(answer) {
+  if (/```file:/i.test(answer)) return [];
+  const out = [];
+  for (const m of answer.matchAll(/^\s*(?:[-*]\s*)?READ:\s*(.+)$/gim)) m[1].split(/[,\s]+/).forEach((x) => { x = x.replace(/[`'"<>]/g, "").replace(/^\/+/, "").trim(); if (x && !out.includes(x)) out.push(x); });
+  return out.slice(0, 5);
+}
+async function agentRead(paths, opts) {
+  const steps = (opts.step || 0) + 1;
+  let task = 0; current.messages.forEach((m, i) => { if (m.role === "user" && !m.auto) task = i; });
+  let used = current.messages.slice(task).flatMap((m) => m.files || []).filter((f) => f.kind === "site").reduce((n, f) => n + f.text.length, 0);
+  const seen = new Set(current.messages.slice(task).flatMap((m) => m.files || []).map((f) => f.name));
+  busy = true; updateSend();
+  const files = [], notes = [];
+  for (const path of paths) {
+    if (seen.has(path)) { notes.push(`${path}: already open`); continue; }
+    try {
+      const f = await ghRead(path);
+      if (!f) notes.push(`${path}: no such file`);
+      else if (used + f.text.length > SITE_LIMIT) notes.push(`${path}: too big to open (${Math.round(f.text.length / 1000)}k characters)`);
+      else { used += f.text.length; files.push({ id: Math.random().toString(36).slice(2), name: path, size: f.text.length, kind: "site", text: f.text, status: "from " + site.repo }); }
+    } catch (e) { notes.push(`${path}: ${e.message}`); }
+  }
+  const last = steps >= 6;
+  current.messages.push({ role: "user", auto: true, files, notes,
+    content: (notes.length ? "Could not open: " + notes.join("; ") + "\n" : "") +
+      (files.length ? "Here are the files you asked for." : "No new files were opened.") +
+      (last ? " You can't open any more files now: finish the task with what you have, or tell the student what is missing." : " Continue with the task: open more files with READ if you really need them, otherwise make the change now.") });
+  busy = false; renderThread(); saveChats(current);
+  return respond({ ...opts, step: steps });
+}
+async function publishAll(btn, msgEl) {
+  if (!site) return openSiteDlg();
+  const note = btn.parentElement.querySelector(".pubnote");
+  const say = (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); };
+  const files = [...msgEl.querySelectorAll(".codeblock[data-path]")].map((b) => { let c = b.querySelector("code").textContent; if (!c.endsWith("\n")) c += "\n"; return { path: b.dataset.path, content: c }; });
+  const byPath = new Map(files.map((f) => [f.path, f])); // if Max wrote a file twice, the last one wins
+  const list = [...byPath.values()];
+  if (list.some((f) => !/^[\w@()+ .\/-]+$/.test(f.path) || f.path.includes(".."))) return say("Max gave a file name that can't be published.", true);
+  btn.disabled = true;
+  try {
+    if (btn.dataset.armed !== "1") {
+      const parts = []; let shrunk = false;
+      for (const f of list) {
+        const cur = await ghRead(f.path);
+        if (cur && f.content.length < cur.text.length * 0.6) shrunk = true;
+        parts.push(cur ? (cur.text === f.content ? `${f.path} (no change)` : `replaces ${f.path}`) : `creates ${f.path}`);
+      }
+      say(`One update to ${site.repo}: ${parts.join(", ")}.` + (shrunk ? " Warning: a file is much shorter than the current one. Max may have left parts out." : "") + " Tap again to publish.", shrunk);
+      btn.dataset.armed = "1"; btn.textContent = "Publish now"; btn.classList.toggle("warn", shrunk); btn.disabled = false;
+      return;
+    }
+    say("Publishing…");
+    const ask = [...current.messages].reverse().find((m) => m.role === "user" && !m.auto)?.content || "update";
+    const post = async (path, body, method = "POST") => (await gh(`/repos/${site.repo}/git/${path}`, { method, body: JSON.stringify(body) })).json();
+    const head = (await (await gh(`/repos/${site.repo}/git/ref/heads/${ghPath(site.branch)}`)).json()).object.sha;
+    const base = (await (await gh(`/repos/${site.repo}/git/commits/${head}`)).json()).tree.sha;
+    const tree = await post("trees", { base_tree: base, tree: list.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })) });
+    const commit = await post("commits", { message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), tree: tree.sha, parents: [head] });
+    await post(`refs/heads/${ghPath(site.branch)}`, { sha: commit.sha }, "PATCH");
+    btn.textContent = "Published ✓"; btn.classList.remove("warn"); note.classList.remove("err");
+    note.innerHTML = `Published ${list.length} files to ${esc(site.repo)}. Vercel usually updates the live site in about a minute. ` + (commit.html_url ? `<a href="${esc(commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
+    msgEl.querySelectorAll('[data-cb="publish"]').forEach((b) => { b.disabled = true; b.textContent = "Published ✓"; });
+  } catch (e) { say(e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message, true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = "Publish all"; }
+}
 async function publish(btn, block, code) {
   if (!site) return openSiteDlg();
   const path = block.dataset.path;
@@ -860,7 +941,7 @@ async function publish(btn, block, code) {
       return;
     }
     say("Publishing…");
-    const ask = [...current.messages].reverse().find((m) => m.role === "user")?.content || "update";
+    const ask = [...current.messages].reverse().find((m) => m.role === "user" && !m.auto)?.content || "update";
     const bytes = new TextEncoder().encode(code); let bin = ""; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
     const res = await (await gh(`/repos/${site.repo}/contents/${ghPath(path)}`, { method: "PUT", body: JSON.stringify({ message: ("Max: " + ask.replace(/\s+/g, " ")).slice(0, 72), content: btoa(bin), branch: site.branch, ...(btn.dataset.sha ? { sha: btn.dataset.sha } : {}) }) })).json();
     btn.textContent = "Published ✓"; btn.classList.remove("warn");
@@ -965,7 +1046,7 @@ async function submit(text) {
   if (!site) return openSiteDlg();
   if (!text.trim()) return;
   sendBtn.disabled = true; setStatus("");
-  try { send(text, { files: await siteFilesForSend(), site: true }); }
+  try { siteLoadTree().catch(() => {}); send(text, { files: site.picked?.length ? await siteFilesForSend() : [], site: true }); }
   catch (e) { setStatus(e.message); updateSend(); }
 }
 $("starters").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setMode(b.dataset.mode); send(b.firstChild.textContent); });

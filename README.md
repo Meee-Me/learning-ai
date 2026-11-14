@@ -15,9 +15,11 @@ GitHub) then rebuilds it.
 
 1. Tap **Connect a website** in the sidebar. Enter the repository (`owner/name`) and a GitHub
    fine-grained token limited to that one repository with **Contents: Read and write**.
-2. Pick the files Max may see (**+ File**), then tell him what to change in **Edit website** mode.
-3. Max answers with the complete new file. **Run** previews web pages, **Publish** (two taps, with a
-   size check) commits it to the repository's main branch.
+2. In **Edit website** mode, tell him what to change. Max sees the list of files, opens the ones he
+   needs by himself (shown as "Max opened …"), then answers with the complete new files.
+   **+ File** lets you hand him files up front.
+3. **Run** previews web pages. **Publish** sends one file; **Publish all** sends every changed file
+   as a single update. Both take two taps and warn when a file got much shorter.
 
 The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
 Max reads up to 30,000 characters of files at a time, so big files can't be edited.
