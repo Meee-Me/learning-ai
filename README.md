@@ -66,17 +66,21 @@ With nothing configured, Max asks [Pollinations](https://pollinations.ai), a fre
 No key, no card. It is run by someone else, so it can be slow or busy at times, and the messages
 (and attached file text) are sent to it. Don't share private things with Max.
 
-### Optional: your own AI router or provider (stronger models)
+### Stronger brains: Max's built-in router
 
-The quick way, for one person: open Max's settings (top right), set **Max's brain** to **My own AI
-router**, and enter the router's address, key and model. It is kept in that browser only.
+Max's server is a small AI router, like OmniRoute but built in, so there is no extra server to run.
+Open **settings → Max's brain** and connect any of these; Max tries them first, strongest model first,
+and falls back to the next (and finally the free AI) when one is busy or out of free use:
 
-For everyone who uses this copy of Max: Max can use anything that speaks the OpenAI chat format: an [OmniRoute](https://github.com/diegosouzapw/OmniRoute)
-server you run, OpenRouter, Groq, and others. In Vercel's Environment Variables set:
+- **Google Gemini**, **OpenRouter**, **Groq**, **Mistral**: paste a free key (each row links to where to get it).
+- **GitHub Models**: uses the GitHub account connected under Connect a website.
+- **Your own router**: an OmniRoute or other OpenAI-compatible server with a public https address.
 
-- `MAX_AI_URL`: the service's address ending in `/v1` (for example `https://openrouter.ai/api/v1`)
-- `MAX_AI_KEY`: your key for it
-- `MAX_MODEL`: the model name, or several separated by commas (tried in order)
+Each row has a **Test** button. Max picks the strongest model each provider offers; a model name can
+be typed to override. Keys are kept in that browser only.
+
+To set one provider for everyone who uses this copy of Max, use Vercel's Environment Variables:
+`MAX_AI_URL` (address ending in `/v1`), `MAX_AI_KEY`, and `MAX_MODEL` (one or more, comma-separated).
 
 ### Optional: Cloudflare Workers AI (free, more reliable)
 

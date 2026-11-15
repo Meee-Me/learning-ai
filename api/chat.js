@@ -98,6 +98,56 @@ async function freeModels(hard) {
   return [...new Set([...picked, "openai"])].slice(0, 4);
 }
 
+/* Max's built-in router. People connect AI providers in Max's settings (a free key each, or their
+   connected GitHub account); every question is tried on those, strongest first, then on the free AI. */
+const PRESETS = {
+  gemini: { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai", fallback: ["gemini-2.5-flash"] },
+  github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
+  openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
+  groq: { name: "Groq", url: "https://api.groq.com/openai/v1", fallback: ["llama-3.3-70b-versatile"] },
+  mistral: { name: "Mistral", url: "https://api.mistral.ai/v1", fallback: ["mistral-large-latest"] },
+};
+const NOT_CHAT = /embed|whisper|tts|guard|image|rerank|moderation|audio|dall|imagen|veo|aqa|learnlm|live|native|robotics|computer-use|transcribe|realtime|ocr|speech/i;
+const STRONG = [/gpt-5(?!.*(nano|mini|chat))/i, /claude.*(opus|sonnet)/i, /gemini-[\d.]+-pro/i, /gpt-4\.1$/i, /kimi-k2/i, /qwen.*coder/i, /deepseek.*(v3|chat|r1)/i, /gpt-oss-120b/i,
+  /gemini-[\d.]+-flash(?!-lite)/i, /llama-3\.3-70b/i, /mistral-large/i, /codestral/i, /gpt-4o$/i, /gpt-4\.1-mini|gpt-5-mini/i];
+const QUICK = [/gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
+const pickCache = new Map();
+
+function readBrains(body) { // -> { brains } or { error }
+  const list = Array.isArray(body.brains) ? body.brains.slice(0, 4) : [];
+  if (body.brain && typeof body.brain.url === "string" && body.brain.url.trim()) list.unshift({ id: "custom", ...body.brain });
+  const brains = [];
+  for (const b of list) {
+    const key = String(b?.key || "").trim().slice(0, 400), model = String(b?.model || "").trim().slice(0, 300);
+    if (PRESETS[b?.id]) { if (key) brains.push({ ...PRESETS[b.id], id: b.id, key, model }); continue; }
+    if (b?.id !== "custom" || !String(b.url || "").trim()) continue;
+    let u; try { u = new URL(String(b.url).trim()); } catch { return { error: "That AI address isn't a valid web address. It should look like https://something/v1" }; }
+    const host = u.hostname;
+    if (u.protocol !== "https:" || !host.includes(".") || /^[\d.]+$/.test(host) || host.includes(":") || /\.(local|internal|lan|home)$/.test(host))
+      return { error: "Max's server can only reach an AI address on the internet that starts with https://. An address like localhost or 192.168… only works on your own network, so the router needs a public address first." };
+    brains.push({ id: "custom", name: "Your router", url: (u.origin + u.pathname).replace(/\/+$/, "").replace(/\/chat\/completions$/, ""), key, model: model || "auto" });
+  }
+  return { brains: brains.slice(0, 4) };
+}
+// Which of a provider's models to try: the person's choice, or the strongest ones its model list offers.
+async function brainModels(b, hard) {
+  if (b.model) return b.model.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
+  const cacheKey = `${b.id}:${b.key.slice(-8)}:${hard}`, hit = pickCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.models;
+  let models = b.fallback || [];
+  try {
+    const r = await fetch(b.list || b.url + "/models", { headers: { Authorization: `Bearer ${b.key}` }, signal: AbortSignal.timeout(4000) });
+    const j = await r.json();
+    const ids = (Array.isArray(j) ? j : j.data || j.models || []).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
+    const want = hard ? STRONG : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
+    const sorted = ids.map((id) => [rank(id), id]).filter(([n]) => n < 999).sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? 1 : -1)).map(([, id]) => id);
+    const picked = [...new Set(sorted)].slice(0, 3);
+    if (picked.length) models = picked; else if (ids.length && !models.length) models = ids.slice(0, 2);
+  } catch {}
+  pickCache.set(cacheKey, { at: Date.now(), models });
+  return models;
+}
+
 // Runs at the edge so a long answer (a whole web page) can keep streaming for minutes.
 export const config = { runtime: "edge" };
 
@@ -105,10 +155,10 @@ export const config = { runtime: "edge" };
 function explain(status, detail, mine) {
   let reason = "";
   try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
-  if (mine) return (status === 401 || status === 403 ? "Your AI router refused the key. Check the key in Max's settings."
-    : status === 404 ? "Your AI router doesn't know that address or model. Check them in Max's settings."
-    : status === 429 ? "Your AI router says it is busy or out of free use. Wait a bit and try again."
-    : "Your AI router didn't answer properly.") + (reason ? ` (it said: ${reason.slice(0, 200)})` : ` (error ${status})`);
+  if (mine) return (status === 401 || status === 403 ? `${mine.name} refused the key. Check it in Max's settings.`
+    : status === 404 ? `${mine.name} doesn't know that address or model. Check them in Max's settings.`
+    : status === 429 ? `${mine.name} says it is busy or out of free use for now.`
+    : `${mine.name} didn't answer properly.`) + (reason ? ` (it said: ${reason.slice(0, 200)})` : ` (error ${status})`);
   const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
     : FREE ? "Max's free AI didn't answer. Try again in a moment."
     : OWN ? (status === 401 || status === 403 ? "Max's AI key was refused. Check MAX_AI_KEY in Vercel." : status === 404 ? "Max's AI address or model name is wrong. Check MAX_AI_URL and MAX_MODEL in Vercel." : "Max's AI didn't answer. Try again in a moment.")
@@ -143,30 +193,23 @@ export default async function handler(req) {
   while (messages.length && messages[0].role !== "user") messages.shift();
   if (!messages.length || messages[messages.length - 1].role !== "user") return json(400, { error: "Send a message for Max to answer." });
 
-  // A brain the person connected inside Max's settings: their own AI router (OmniRoute, OpenRouter, ...).
-  let mine = null;
-  if (body.brain && typeof body.brain.url === "string" && body.brain.url.trim()) {
-    let u; try { u = new URL(body.brain.url.trim()); } catch { return json(400, { error: "That AI address isn't a valid web address. It should look like https://something/v1" }); }
-    const host = u.hostname;
-    if (u.protocol !== "https:" || !host.includes(".") || /^[\d.]+$/.test(host) || host.includes(":") || /\.(local|internal|lan|home)$/.test(host))
-      return json(400, { error: "Max's server can only reach an AI address on the internet that starts with https://. An address like localhost or 192.168… only works on your own network, so the router needs a public address first." });
-    const base = (u.origin + u.pathname).replace(/\/+$/, "");
-    mine = { url: /\/chat\/completions$/.test(base) ? base : base + "/chat/completions", key: String(body.brain.key || "").slice(0, 400),
-      models: String(body.brain.model || "auto").split(",").map((x) => x.trim().slice(0, 100)).filter(Boolean).slice(0, 4) };
-    if (!mine.models.length) mine.models = ["auto"];
-  }
-  const token = mine ? mine.key : FREE ? "" : OWN ? process.env.MAX_AI_KEY || "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
-  if (!mine && OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });
-  if (!mine && !FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
+  const read = readBrains(body);
+  if (read.error) return json(400, { error: read.error });
+  const brains = read.brains;
+  if (body.test && !brains.length) return json(400, { error: "Enter a key first." });
+  const token = FREE ? "" : OWN ? process.env.MAX_AI_KEY || "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
+  if (!brains.length && OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });
+  if (!brains.length && !FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
   const hard = mode === "code" || mode === "site";
   const stop = new AbortController();
   req.signal?.addEventListener("abort", () => stop.abort());
   const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : 1500;
-  const ask = (model, extra = {}) => fetch(mine ? mine.url : URL_, {
+  // A route is one model at one provider. Connected providers choose their own answer length.
+  const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model, stream: true, max_tokens: room, ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
+    headers: { ...(rt.token ? { Authorization: `Bearer ${rt.token}` } : {}), "Content-Type": "application/json" },
+    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.own ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
   });
 
   // The answer is sent as plain text. Notes for the page (which model, errors, keep-alive pings) travel
@@ -178,24 +221,27 @@ export default async function handler(req) {
       const ping = setInterval(() => note({ ping: 1 }), 8000); // keeps the connection open while the AI thinks
       let wrote = false, lastError = "";
       try {
-        // Which models to try, strongest first. Code and website edits get the strongest ones.
-        let tries = [MODEL];
-        if (mine) tries = mine.models;
-        else if (MODELS.length) tries = MODELS.slice(0, 4);
-        else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
-        else if (FREE) tries = await freeModels(hard);
-
+        // Routes to try, in order: the providers this person connected, then Max's default AI.
+        const routes = [];
+        for (const b of brains) for (const model of await brainModels(b, hard)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b });
+        if (!body.test) {
+          let tries = [MODEL];
+          if (MODELS.length) tries = MODELS.slice(0, 4);
+          else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
+          else if (FREE) tries = await freeModels(hard);
+          for (const model of tries) routes.push({ url: URL_, token, model, label: model, own: null });
+        }
         // Some models think silently first and can use up all their room before writing anything.
-        // When that happens, ask the same model again with less thinking and more room.
-        const plan = tries.flatMap((model) => [[model, {}], [model, { reasoning_effort: "low", max_tokens: Math.max(room * 2, 8000) }], [model, { max_tokens: Math.max(room * 3, 12000) }]]);
-        let skipRetries = "";
-        for (const [model, extra] of plan) {
-          const retry = Object.keys(extra).length > 0;
-          if (retry && skipRetries !== model) continue; // retries only follow an empty, thought-out answer
+        // When that happens on the default AI, ask the same model again with less thinking and more room.
+        const plan = routes.flatMap((rt) => rt.own ? [[rt, {}]] : [[rt, {}], [rt, { reasoning_effort: "low", max_tokens: Math.max(room * 2, 8000) }], [rt, { max_tokens: Math.max(room * 3, 12000) }]]);
+        let skipRetries = null;
+        for (const [rt, extra] of plan) {
+          const retry = Object.keys(extra).length > 0, mine = rt.own, model = rt.label;
+          if (retry && skipRetries !== rt) continue; // retries only follow an empty, thought-out answer
           let up;
-          try { up = await ask(model, extra); } catch (e) { if (stop.signal.aborted) return; lastError = mine ? "Max's server couldn't reach your AI router. Check that its address is right and that it is running." : "Max's server couldn't reach his AI. Try again."; continue; }
+          try { up = await ask(rt, extra); } catch (e) { if (stop.signal.aborted) return; lastError = mine ? `Max's server couldn't reach ${mine.name}. Check that it is set up right and running.` : "Max's server couldn't reach his AI. Try again."; continue; }
           if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => ""), mine); continue; }
-          note({ model: model.replace(/[^\w./@-]/g, "") });
+          note({ model: model.replace(/[^\w./@: ·-]/g, "") });
           const reader = up.body.getReader(), dec = new TextDecoder();
           let buf = "", all = "", thought = false, cut = false;
           for (;;) {
@@ -222,7 +268,7 @@ export default async function handler(req) {
             try { const j = JSON.parse(all); const text = j.choices?.[0]?.message?.content; if (typeof text === "string" && text) { out.enqueue(enc.encode(text)); wrote = true; } else if (j.error) lastError = explain(500, all, mine); } catch {}
           }
           if (wrote) { if (cut) note({ cut: 1 }); return; }
-          if (thought || cut) skipRetries = model; // worth another try with less thinking
+          if (thought || cut) skipRetries = rt; // worth another try with less thinking
           lastError = thought || cut ? "Max's AI ran out of room before it could answer. Ask for something smaller, one step at a time." : "Max's AI sent back an empty answer. Try again, or ask for something smaller.";
           console.error("empty answer from", model);
         }

@@ -85,7 +85,19 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .popover { position: absolute; top: 52px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 20; width: min(320px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .popover label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .popover select, .popover input { font: 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
-#brainOwn { display: flex; flex-direction: column; gap: 10px; }
+.brainbtn { text-align: left; font-size: 13.5px; }
+#brainRows { display: flex; flex-direction: column; gap: 10px; }
+.prov { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+.prov.on { border-color: var(--accent); }
+.prov b { font: 600 15px var(--font-display); }
+.prov .about { font-size: 12.5px; color: var(--muted); }
+.prov .row { display: flex; gap: 6px; align-items: center; }
+.prov .row input[type="password"], .prov .row input[type="text"] { flex: 1; min-width: 0; }
+.prov .check { flex-direction: row; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); font-weight: 400; }
+.prov .check input { width: auto; }
+.prov .result { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.prov .result.ok { color: #2fa36b; } .prov .result.bad { color: var(--danger); }
+.prov .btn { padding: 8px 12px; font-size: 13px; }
 .popover .hint { font-size: 12px; color: var(--muted); margin: 0; }
 
 .scroller { flex: 1; overflow-y: auto; min-height: 0; }
@@ -312,18 +324,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
       <label>Subject (optional)
         <input id="subject" type="text" placeholder="e.g. fractions, biology, Python">
       </label>
-      <label>Max's brain
-        <select id="brainKind">
-          <option value="free">Free AI (no setup)</option>
-          <option value="own">My own AI router (OmniRoute, OpenRouter…)</option>
-        </select>
-      </label>
-      <div id="brainOwn" hidden>
-        <label>Address <input id="brainUrl" type="text" placeholder="https://…/v1" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-        <label>Key <input id="brainKey" type="password" placeholder="The router's API key" autocomplete="off"></label>
-        <label>Model <input id="brainModel" type="text" placeholder="auto" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-        <p class="hint">The address must be on the internet (https), not localhost. The key stays in this browser and is sent only through Max's server to your router.</p>
-      </div>
+      <button class="btn ghost brainbtn" id="brainBtn" type="button">Max's brain: free AI</button>
     </div>
 
     <div class="scroller" id="scroller">
@@ -456,6 +457,15 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
           <button class="btn ghost" id="siteCancel" type="button">Close</button>
         </div>
       </form>
+    </div>
+    <div class="modal" id="brainDlg" hidden>
+      <div class="dlg">
+        <h2>Max's brain</h2>
+        <p>Max always has his free AI. Connect stronger ones here and he tries them first, strongest first, and falls back to the next when one is busy or out of free use.</p>
+        <div id="brainRows"></div>
+        <p class="hint">Keys stay in this browser. With each question, a key goes through Max's server to its own provider only, and is not stored there. Your questions and any files Max opens are sent to the provider that answers.</p>
+        <div class="dlgrow"><span class="grow"></span><button class="btn" id="brainDone" type="button">Done</button></div>
+      </div>
     </div>
     <div class="modal" id="pickDlg" hidden>
       <div class="dlg">
@@ -834,7 +844,7 @@ async function respond(opts = {}) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, brain: brain.kind === "own" && brain.url ? { url: brain.url, key: brain.key, model: brain.model || "auto" } : undefined, voice: !!opts.voice, site: prefs.mode === "site" && site ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
+      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, brains: brainList(), voice: !!opts.voice, site: prefs.mode === "site" && site ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -1468,12 +1478,66 @@ document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.t
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("runner").hidden) $("runClose").click(); if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
 $("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
 $("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
-// Max's brain: the free AI, or the person's own AI router. Kept in this browser only (it holds a key).
-let brain = store.get("max.brain", { kind: "free", url: "", key: "", model: "" });
-function brainUI() { $("brainKind").value = brain.kind; $("brainOwn").hidden = brain.kind !== "own"; $("brainUrl").value = brain.url; $("brainKey").value = brain.key; $("brainModel").value = brain.model; }
-const brainSave = () => { brain = { kind: $("brainKind").value, url: $("brainUrl").value.trim(), key: $("brainKey").value.trim(), model: $("brainModel").value.trim() }; store.set("max.brain", brain); $("brainOwn").hidden = brain.kind !== "own"; };
-["brainKind", "brainUrl", "brainKey", "brainModel"].forEach((id) => { $(id).onchange = brainSave; $(id).oninput = brainSave; });
-brainUI();
+// Max's brain: his free AI plus any stronger AI providers this person connected. Kept in this browser only (keys).
+const PROVIDERS = [
+  { id: "gemini", name: "Google Gemini", about: "Strong and fast. Free key with a Google account, no card.", link: "https://aistudio.google.com/apikey" },
+  { id: "github", name: "GitHub Models", about: "Uses the GitHub account you connected in Connect a website. Nothing to paste. Small questions only on the free plan.", noKey: true },
+  { id: "openrouter", name: "OpenRouter", about: "Many free models behind one free key, no card.", link: "https://openrouter.ai/keys" },
+  { id: "groq", name: "Groq", about: "Very fast open models. Free key, no card.", link: "https://console.groq.com/keys" },
+  { id: "mistral", name: "Mistral", about: "Free plan after a phone check.", link: "https://console.mistral.ai/api-keys" },
+  { id: "custom", name: "Your own router (OmniRoute and others)", about: "A server you run that speaks the OpenAI chat format. It needs a public https address.", custom: true },
+];
+let brains = store.get("max.brains", {});
+{ const old = store.get("max.brain", null); if (old?.kind === "own" && old.url && !brains.custom) { brains.custom = { url: old.url, key: old.key, model: old.model }; store.set("max.brains", brains); } }
+function brainList() { // what to send with a question, strongest first
+  const out = [];
+  for (const id of ["custom", "gemini", "github", "openrouter", "groq", "mistral"]) {
+    const c = brains[id]; if (!c) continue;
+    if (id === "github") { if (c.on && site?.token) out.push({ id, key: site.token, model: c.model || "" }); }
+    else if (id === "custom") { if (c.url) out.push({ id, url: c.url, key: c.key || "", model: c.model || "auto" }); }
+    else if (c.key) out.push({ id, key: c.key, model: c.model || "" });
+  }
+  return out.slice(0, 4);
+}
+function brainLabel() { const n = brainList().length; $("brainBtn").textContent = n ? `Max's brain: ${n} connected + free AI` : "Max's brain: free AI"; }
+function brainRender() {
+  $("brainRows").innerHTML = PROVIDERS.map((p) => {
+    const c = brains[p.id] || {};
+    const on = p.noKey ? c.on && site?.token : p.custom ? c.url : c.key;
+    return `<div class="prov${on ? " on" : ""}" data-id="${p.id}"><b>${esc(p.name)}</b><span class="about">${esc(p.about)}${p.link ? ` <a href="${p.link}" target="_blank" rel="noopener">Get a free key</a>` : ""}</span>` +
+      (p.noKey ? `<label class="check"><input type="checkbox" data-f="on"${c.on ? " checked" : ""}${site?.token ? "" : " disabled"}>${site?.token ? "Use my GitHub account" : "Connect GitHub first (sidebar → Connect a website)"}</label>` : "") +
+      (p.custom ? `<input type="text" data-f="url" placeholder="Address: https://…/v1" value="${esc(c.url || "")}" autocomplete="off" autocapitalize="off" spellcheck="false">` : "") +
+      `<div class="row">${p.noKey ? "" : `<input type="password" data-f="key" placeholder="Paste the key here" value="${esc(c.key || "")}" autocomplete="off">`}<input type="text" data-f="model" placeholder="Model: automatic" value="${esc(c.model || "")}" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn ghost" type="button" data-test="1">Test</button></div><span class="result"></span></div>`;
+  }).join("");
+}
+$("brainRows").addEventListener("input", (e) => {
+  const row = e.target.closest(".prov"), f = e.target.dataset.f; if (!row || !f) return;
+  const c = (brains[row.dataset.id] ||= {});
+  c[f] = e.target.type === "checkbox" ? e.target.checked : e.target.value.trim();
+  store.set("max.brains", brains); brainLabel();
+  const p = PROVIDERS.find((x) => x.id === row.dataset.id);
+  row.classList.toggle("on", !!(p.noKey ? c.on && site?.token : p.custom ? c.url : c.key));
+});
+$("brainRows").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-test]"); if (!btn) return;
+  const row = btn.closest(".prov"), res = row.querySelector(".result"), entry = brainList().find((b) => b.id === row.dataset.id);
+  const show = (t, cls) => { res.textContent = t; res.className = "result " + (cls || ""); };
+  if (!entry) return show(row.dataset.id === "github" ? "Tick the box first." : row.dataset.id === "custom" ? "Enter the address first." : "Paste a key first.", "bad");
+  btn.disabled = true; show("Testing…");
+  try {
+    const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ test: true, brains: [entry], messages: [{ role: "user", content: "Reply with only the word OK." }] }) });
+    if (!r.ok) { let m = "It didn't work."; try { m = (await r.json()).error || m; } catch {} throw new Error(m); }
+    const raw = await r.text(); let model = "", err = "";
+    for (const m of raw.matchAll(/\u0001([^\u0001]*)\u0001/g)) { try { const n = JSON.parse(m[1]); if (n.model) model = n.model; if (n.error) err = n.error; } catch {} }
+    const text = raw.replace(/\u0001[^\u0001]*\u0001/g, "").trim();
+    if (!text) throw new Error(err || "It sent back nothing.");
+    show(`Works. ${model} answered: ${text.slice(0, 40)}`, "ok");
+  } catch (e2) { show(e2.message === "Failed to fetch" || e2.message === "Load failed" ? "Couldn't reach Max's server. Check your internet." : e2.message, "bad"); }
+  btn.disabled = false;
+});
+$("brainBtn").onclick = () => { pop.hidden = true; brainRender(); $("brainDlg").hidden = false; };
+$("brainDone").onclick = () => { $("brainDlg").hidden = true; brainLabel(); };
+brainLabel();
 
 const isPhone = () => matchMedia("(max-width: 820px)").matches;
 function closeSideOnPhone() { shell.classList.remove("side-open"); }
