@@ -75,6 +75,11 @@ const system = (subject, level, mode, site) => mode === "site" && site ? SITE(le
 Mode: ${MODES[mode]}
 Rules: keep replies short (usually under 150 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Use simple Markdown only (bold, lists, \`code\`, code blocks); no tables or LaTeX, write math in plain text like 3x + 5 = 20. If the student attached a file, its text is in their message between <file> tags: use it to teach them. If you are not sure about a fact, say so.`;
 
+// Who Max is, for every mode. Students type casually, and "you" must mean Max, not a letter.
+const ABOUT = `
+
+About you: you are Max, an AI tutor inside the Max Tutor app. You teach step by step, quiz students, give hints, write and run code, and can edit a student's website on GitHub. You are friendly, patient and encouraging. Students type casually: "u" means "you", "ur" means "your", "r" means "are". When a student says "explain you", "who u are" or "about you", they mean YOU, Max, never the letter U. If they ask for a website or text about you, write it about Max: who he is, what he can do (teach, quiz, hints, code, edit websites), and how he helps students learn.`;
+
 const VOICE = "\nThis turn is a SPOKEN conversation: your reply will be read aloud. Answer in 1 to 3 short, natural sentences. No Markdown, no lists, no emoji, no code blocks. Say math in words.";
 
 // The free service lists its models; pick the strongest ones it offers without an account.
@@ -225,7 +230,7 @@ export default async function handler(req) {
   const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
     headers: { ...(rt.token ? { Authorization: `Bearer ${rt.token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.own && !rt.own.needMax ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.own && !rt.own.needMax ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + ABOUT + (body.voice ? VOICE : "") }, ...messages] }),
   });
 
   // The answer is sent as plain text. Notes for the page (which model, errors, keep-alive pings) travel
