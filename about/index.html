@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Max Tutor</title>
+<meta name="description" content="Max is a patient AI tutor. He explains one small step at a time, quizzes you, gives hints instead of answers, reads your files and talks with you.">
+<link rel="icon" href="https://deluxe-main.vercel.app/icons/max.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: left-aligned hero beside a live chat demo, ruled feature rows, one closing call to action */
+:root {
+  --bg: #f6f8fc;
+  --surface: #ffffff;
+  --ink: #18223a;
+  --muted: #55627d;
+  --line: #dbe2ef;
+  --soft: #e8efff;
+  --accent: #2f6bff;
+  --accent-ink: #ffffff;
+  --chalk: #ffcf4a;
+  --mark: rgb(255 207 74 / .75);
+  --shadow: 0 1px 2px rgb(20 30 60 / .06), 0 18px 50px rgb(20 30 60 / .10);
+  --display: "Fredoka", "Nunito Sans", system-ui, sans-serif;
+  --body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1424; --surface: #171e33; --ink: #e8edf8; --muted: #9aa6c2; --line: #2a3452; --soft: #1e2a4a;
+    --accent: #6f98ff; --accent-ink: #0f1424; --chalk: #ffd666; --mark: rgb(255 214 102 / .32);
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 18px 50px rgb(0 0 0 / .35); color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-text-size-adjust: 100%; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+/* header */
+header { padding-block: 18px; }
+header .wrap { display: flex; align-items: center; gap: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 600 24px var(--display); }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 600 19px var(--display); position: relative; flex: none; }
+.avatar::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; background: var(--chalk); border: 2px solid var(--bg); }
+nav { margin-left: auto; display: flex; align-items: center; gap: 22px; font-size: 15px; font-weight: 600; }
+nav a.link { text-decoration: none; color: var(--muted); }
+nav a.link:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font: 700 16px var(--body); padding: 12px 22px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); border: 2px solid var(--accent); transition: transform .15s, box-shadow .15s; }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgb(47 107 255 / .3); }
+.btn.ghost { background: none; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--ink); box-shadow: none; }
+.btn.small { padding: 8px 16px; font-size: 14.5px; }
+@media (max-width: 640px) { nav a.link { display: none; } }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.02fr); gap: clamp(28px, 5vw, 64px); align-items: center; padding-block: clamp(28px, 6vw, 72px) clamp(40px, 7vw, 88px); }
+.eyebrow { margin: 0 0 14px; font: 700 13px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font: 600 clamp(40px, 6.4vw, 68px)/1.04 var(--display); letter-spacing: -.01em; text-wrap: balance; }
+h1 .mark { background: linear-gradient(transparent 64%, var(--mark) 64% 93%, transparent 93%); padding-inline: .06em; }
+.lead { margin: 22px 0 0; max-width: 33ch; font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.fine { margin: 16px 0 0; font-size: 14px; color: var(--muted); }
+@media (max-width: 880px) { .hero { grid-template-columns: 1fr; } .lead { max-width: 42ch; } }
+
+/* chat demo */
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
+.tabs { display: flex; gap: 4px; padding: 10px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; border: 0; background: none; font: 700 14px var(--body); color: var(--muted); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.panel { padding: 20px 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 330px; }
+.panel[hidden] { display: none; }
+.msg { display: flex; gap: 10px; align-items: flex-start; max-width: 100%; }
+.msg .avatar { width: 28px; height: 28px; font-size: 14px; margin-top: 3px; }
+.msg .avatar::after { display: none; }
+.bubble { background: var(--soft); border-radius: 4px 16px 16px 16px; padding: 10px 14px; font-size: 15.5px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.bubble p { margin: 0 0 8px; } .bubble p:last-child { margin: 0; }
+.bubble ul { margin: 2px 0 8px; padding-left: 20px; }
+.me { justify-content: flex-end; }
+.me .bubble { background: var(--ink); color: var(--bg); border-radius: 16px 4px 16px 16px; }
+.codebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; padding: 7px 8px 7px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font: 12.5px var(--mono); color: var(--muted); }
+.codebar span.grow { flex: 1; }
+.codebar b { font: 700 12px var(--body); padding: 3px 9px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); }
+.codebar i { font: 600 12px var(--body); font-style: normal; padding: 3px 9px; }
+.score { font: 700 13px var(--body); color: var(--accent); }
+
+/* features */
+section { padding-block: clamp(36px, 6vw, 72px); }
+h2 { margin: 0 0 8px; font: 600 clamp(30px, 4.4vw, 44px)/1.1 var(--display); text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); max-width: 52ch; }
+.rows { margin-top: 34px; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 12px 40px; padding-block: 26px; border-bottom: 1px solid var(--line); }
+.row h3 { margin: 0; font: 600 23px/1.2 var(--display); }
+.row p { margin: 0 0 8px; max-width: 62ch; } .row p:last-child { margin: 0; }
+.row .what { font-weight: 700; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tags span { font: 600 13px var(--body); padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+@media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 8px; } }
+
+/* honest note and closing */
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: clamp(22px, 4vw, 34px); display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 12px 40px; }
+.note h2 { font-size: 26px; margin: 0; }
+.note ul { margin: 0; padding-left: 20px; } .note li { margin: 4px 0; }
+@media (max-width: 720px) { .note { grid-template-columns: 1fr; } }
+.close { text-align: left; }
+.close h2 { font-size: clamp(34px, 6vw, 56px); }
+footer { padding-block: 30px calc(34px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); color: var(--muted); font-size: 14.5px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="avatar" aria-hidden="true">M</span>Max</a>
+    <nav aria-label="Page">
+      <a class="link" href="#how">How he helps</a>
+      <a class="link" href="#more">What else he does</a>
+      <a class="btn small" href="https://learning-ai-lilac.vercel.app/">Open Max</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <p class="eyebrow">AI tutor</p>
+      <h1>A tutor that makes you <span class="mark">think</span>.</h1>
+      <p class="lead">Max explains one small step at a time, quizzes you, and gives hints instead of answers. Type to him, talk to him, or hand him your notes.</p>
+      <div class="cta">
+        <a class="btn" href="https://learning-ai-lilac.vercel.app/">Open Max</a>
+        <a class="btn ghost" href="#how">See how he teaches</a>
+      </div>
+      <p class="fine">Works on phones and computers. No download.</p>
+    </div>
+
+    <div class="demo" id="how">
+      <div class="tabs" role="tablist" aria-label="How Max teaches">
+        <button role="tab" id="t-teach" aria-selected="true" aria-controls="p-teach">Teach me</button>
+        <button role="tab" id="t-quiz" aria-selected="false" aria-controls="p-quiz" tabindex="-1">Quiz me</button>
+        <button role="tab" id="t-hint" aria-selected="false" aria-controls="p-hint" tabindex="-1">Hints only</button>
+        <button role="tab" id="t-code" aria-selected="false" aria-controls="p-code" tabindex="-1">Code</button>
+      </div>
+
+      <div class="panel" id="p-teach" role="tabpanel" aria-labelledby="t-teach">
+        <div class="msg me"><div class="bubble">Why is 1/2 bigger than 1/3?</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Picture one pizza.</p>
+          <ul><li>Cut it into <b>2</b> pieces: each slice is <b>1/2</b>.</li><li>Cut the same pizza into <b>3</b> pieces: each slice is <b>1/3</b>.</li></ul>
+          <p>More cuts means smaller slices, so 1/2 is bigger.</p>
+          <p><b>Your turn:</b> which is bigger, 1/4 or 1/5? Tell me why.</p>
+        </div></div>
+      </div>
+
+      <div class="panel" id="p-quiz" role="tabpanel" aria-labelledby="t-quiz" hidden>
+        <div class="msg me"><div class="bubble">Quiz me on the planets.</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble"><p>Question 1: which planet is closest to the Sun?</p></div></div>
+        <div class="msg me"><div class="bubble">Mercury</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Right. Mercury orbits about 58 million km from the Sun. <span class="score">Score: 1/1</span></p>
+          <p>Question 2: which planet is the biggest?</p>
+        </div></div>
+      </div>
+
+      <div class="panel" id="p-hint" role="tabpanel" aria-labelledby="t-hint" hidden>
+        <div class="msg me"><div class="bubble">Help me solve 3x + 5 = 20</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Let's work it out together. What would you do first to get the x term on its own?</p>
+          <p><b>Hint:</b> what is the 5 doing to 3x?</p>
+        </div></div>
+        <div class="msg me"><div class="bubble">subtract 5?</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble"><p>Yes. Do it to both sides. What do you get?</p></div></div>
+      </div>
+
+      <div class="panel" id="p-code" role="tabpanel" aria-labelledby="t-code" hidden>
+        <div class="msg me"><div class="bubble">Make a tic-tac-toe game</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Here is a complete page you can run.</p>
+          <div class="codebar"><span>index.html</span><span class="grow"></span><b>▶ Run</b><i>Copy</i><i>Publish</i></div>
+          <p style="margin-top:10px">It draws a 3 by 3 grid and checks for a winner after every move. Try changing the colors.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap" id="more">
+    <h2>More than answers</h2>
+    <p class="sub">Max works with what you actually have: your notes, your voice, your own website.</p>
+    <div class="rows">
+      <div class="row">
+        <h3>Three ways to learn</h3>
+        <div>
+          <p><span class="what">Teach me</span> explains an idea in small steps, then asks one short question to check you got it.</p>
+          <p><span class="what">Quiz me</span> asks one question at a time and keeps your score.</p>
+          <p><span class="what">Hints only</span> never gives the final answer. You do the work, and Max points the way.</p>
+        </div>
+      </div>
+      <div class="row">
+        <h3>Bring your own material</h3>
+        <div>
+          <p>Attach it, drag it in, or paste it. Max reads it and teaches from it.</p>
+          <div class="tags"><span>PDF</span><span>Word</span><span>Text and Markdown</span><span>Code files</span><span>Photos of notes</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <h3>Talk to him</h3>
+        <div><p>Tap the wave button. Max listens, answers out loud in short sentences, and stops when you interrupt him.</p></div>
+      </div>
+      <div class="row">
+        <h3>Build real things</h3>
+        <div>
+          <p><span class="what">Code mode</span> writes complete pages and scripts. Press Run to try them without leaving the chat.</p>
+          <p><span class="what">Edit website mode</span> changes a site that lives on GitHub. Max looks through the files, makes the smallest change, checks his own work, and publishes only when you tap twice. One more button puts the site online.</p>
+        </div>
+      </div>
+      <div class="row">
+        <h3>Pick up where you left off</h3>
+        <div><p>Lessons are saved in the sidebar. Sign in with Deluxe Main and they follow you to every device.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <div class="note">
+        <h2>Straight talk</h2>
+        <ul>
+          <li>Max is an AI and can be wrong. Check anything important.</li>
+          <li>Lessons stay in your browser unless you sign in.</li>
+          <li>Your questions, and any file you attach, go to the AI service that answers them. Leave private things out.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="close">
+    <div class="wrap">
+      <h2>Ask Max something.</h2>
+      <p class="sub">Start with whatever you are stuck on right now.</p>
+      <div class="cta"><a class="btn" href="https://learning-ai-lilac.vercel.app/">Open Max</a></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Max Tutor</span>
+    <span>Signs in with <a href="https://deluxe-main.vercel.app/">Deluxe Main</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function show(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (focus) tab.focus();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { show(t); });
+    t.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(tabs[(i + 1) % tabs.length], true); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(tabs[(i + tabs.length - 1) % tabs.length], true); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

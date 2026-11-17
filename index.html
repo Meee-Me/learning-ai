@@ -71,6 +71,8 @@ aside { width: 272px; flex: none; background: var(--side); border-right: 1px sol
 .hitem .del { opacity: 0; padding: 5px; }
 .hitem:hover .del, .hitem.active .del, .hitem .del:focus-visible { opacity: 1; }
 .hempty { color: var(--muted); font-size: 13.5px; padding: 6px 8px; }
+.aboutlink { font-size: 13px; font-weight: 600; color: var(--muted); padding: 2px 8px 8px; text-decoration: none; }
+.aboutlink:hover { color: var(--accent); }
 .side-foot { border-top: 1px solid var(--line); padding: 10px 6px 4px; font-size: 12.5px; color: var(--muted); padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)); }
 
 /* Main */
@@ -304,6 +306,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
     <div class="side-label">Recent</div>
     <div class="history" id="history"></div>
     <div class="side-foot" id="sideFoot">Chats are saved only in this browser. Sign in with Deluxe Main to keep them on every device.</div>
+    <a class="aboutlink" href="/about/">About Max</a>
   </aside>
   <div class="scrim" id="scrim"></div>
 

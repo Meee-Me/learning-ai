@@ -51,6 +51,11 @@ they tap Connect GitHub, approve, and pick a repository.
 The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
 Max reads up to 30,000 characters of files at a time, so big files can't be edited.
 
+## Website
+
+`about/index.html` is a one-page site about Max, served at `/about/` on the same Vercel project
+(a plain static file, no build). Edit it like any other file.
+
 ## Features
 
 - Chat layout with a sidebar of past lessons, new lesson, copy and try-again buttons.
