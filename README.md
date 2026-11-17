@@ -31,6 +31,11 @@ How Max works on a site, step by step:
   real file, JavaScript and JSON must parse, and a rewritten file must not lose half its lines. If
   something is wrong Max is told and fixes it (up to two tries). Answers that pass show "✓ checked".
 
+**Put it online:** in Edit website mode, the **Put it online** button above the message box turns on
+GitHub Pages for the connected repository (free, no card). Max shows the site's address, and every
+Publish updates it. It needs an `index.html` at the top of the repository, admin rights on it, and a
+public repository (private ones need a paid GitHub plan for Pages).
+
 After a publish Max follows the rebuild through GitHub (Vercel, Netlify and others report back
 there), says when the change is live, and offers **Ask Max to fix it** if the build fails. Vercel or
 Netlify tokens are only needed to read full build error logs.

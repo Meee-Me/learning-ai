@@ -144,6 +144,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .sitelabel { font-weight: 700; }
 .sitebar .chip { padding: 3px 4px 3px 9px; border-radius: 999px; font: 12px var(--font-mono); max-width: 200px; }
 .sitebar .chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.addfile.host { border-style: solid; border-color: var(--accent); }
+.hostnote { flex-basis: 100%; font-size: 12.5px; color: var(--muted); }
+.hostnote.err { color: var(--danger); }
 .addfile { border: 1px dashed var(--line); background: none; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; color: var(--accent); }
 .modal { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / .45); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
 .dlg { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; }
@@ -358,6 +361,8 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <span class="sitelabel" id="siteLabel"></span>
             <span class="files" id="siteFiles"></span>
             <button class="addfile" id="siteAdd" type="button">+ File</button>
+            <button class="addfile host" id="siteHost" type="button">Put it online</button>
+            <span class="hostnote" id="siteHostNote" hidden></span>
           </div>
           <div class="files" id="pending" hidden></div>
           <textarea id="input" rows="1" placeholder="Ask Max anything…" aria-label="Message Max"></textarea>
@@ -934,6 +939,7 @@ function renderSite() {
   $("siteBar").hidden = !(site && prefs.mode === "site");
   if (!site) return;
   $("siteLabel").textContent = "Editing " + site.repo + ":";
+  if (site.pagesUrl) hostNote(`Online at <a href="${esc(site.pagesUrl)}" target="_blank" rel="noopener">${esc(site.pagesUrl)}</a>`); else $("siteHostNote").hidden = true;
   $("siteFiles").innerHTML = (site.picked || []).map((p) => `<span class="chip" data-path="${esc(p)}"><b title="${esc(p)}">${esc(p)}</b><button class="iconbtn x" type="button" aria-label="Remove ${esc(p)}">${svg("x")}</button></span>`).join("") || "Max opens the files he needs";
 }
 function openSiteDlg() {
@@ -1150,7 +1156,7 @@ function watchDeploy(sha, box) {
         return;
       }
       const secs = (Date.now() - started) / 1000;
-      if (!found && secs > 90) return show("", find === githubDeployFind ? "No rebuild showed up on GitHub for this change. The site may not rebuild from this repository." : `${name}: no rebuild found for this change. The site may be on another account or host.`);
+      if (!found && secs > 90) return show("", find === githubDeployFind ? "No rebuild showed up on GitHub for this change. If the site isn't online yet, tap Put it online above." : `${name}: no rebuild found for this change. The site may be on another account or host.`);
       if (secs > 420) return show("", `${name}: still building after 7 minutes. Check it on ${name}.${link(d?.page, "Open")}`);
       show("wait", d ? `${who}: building…${link(d.page, "Watch")}` : `${name}: waiting for the rebuild to start…`);
       setTimeout(tick, 6000);
@@ -1345,6 +1351,31 @@ async function publishBlocks(btn, blocks, say, where, label) {
     return true;
   } catch (e) { say(netErr(e), true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = label; }
 }
+/* Put the site online: GitHub Pages serves the repository's files as a website (free, no card). */
+function hostNote(html, bad) { const n = $("siteHostNote"); n.hidden = false; n.innerHTML = html; n.classList.toggle("err", !!bad); }
+async function siteHostOnline() {
+  const btn = $("siteHost"); btn.disabled = true; hostNote("Checking…");
+  try {
+    const [owner, name] = site.repo.split("/");
+    let pages = null;
+    try { pages = await (await gh(`/repos/${site.repo}/pages`)).json(); } catch (e) { if (e.status !== 404) throw e; }
+    if (!pages) {
+      await siteLoadTree().catch(() => {});
+      if (!site.tree.includes("index.html")) { hostNote("There is no index.html in this repository yet. Ask Max to make the page and Publish it first, then tap this again.", true); btn.disabled = false; return; }
+      pages = await (await gh(`/repos/${site.repo}/pages`, { method: "POST", body: JSON.stringify({ source: { branch: site.branch, path: "/" } }) })).json();
+    }
+    site.pagesUrl = pages.html_url || `https://${owner.toLowerCase()}.github.io/${name}/`; saveSite();
+    hostNote(`Online at <a href="${esc(site.pagesUrl)}" target="_blank" rel="noopener">${esc(site.pagesUrl)}</a>. The first time, it takes 1 to 2 minutes to appear. Anyone on the internet can open it, and every Publish updates it.`);
+  } catch (e) {
+    const m = e.status === 403 ? "GitHub didn't allow turning on hosting. You need to be an admin of this repository. If you connected with a token, it also needs the Pages permission (Read and write)."
+      : e.status === 422 ? "GitHub can't host this repository. A private repository needs a paid GitHub plan to use Pages. Make the repository public in its settings, or host it on Vercel instead."
+      : e.status === 409 ? "Hosting is already being set up. Wait a minute and tap again."
+      : e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet." : e.message;
+    hostNote(esc(m), true);
+  }
+  btn.disabled = false;
+}
+$("siteHost").onclick = siteHostOnline;
 function publishAll(btn, msgEl) {
   const note = btn.parentElement.querySelector(".pubnote");
   return publishBlocks(btn, [...msgEl.querySelectorAll(".codeblock[data-path]")].map(blockOf), (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); }, btn.parentElement, "Publish all")
