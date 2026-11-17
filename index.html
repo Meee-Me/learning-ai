@@ -2,1591 +2,315 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="description" content="Max, a free AI tutor. Teaches step by step, quizzes you, and reads your files.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Max Tutor</title>
-<script src="https://deluxe-main.vercel.app/deluxe.js" data-app="max"></script>
+<meta name="description" content="Max is a patient AI tutor. He explains one small step at a time, quizzes you, gives hints instead of answers, reads your files and talks with you.">
 <link rel="icon" href="https://deluxe-main.vercel.app/icons/max.svg">
-<link rel="apple-touch-icon" href="https://deluxe-main.vercel.app/icons/max-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=JetBrains+Mono:wght@400&display=swap">
 <style>
-/* Layout: chat app — collapsible chat-history sidebar, centered conversation column, composer docked at the bottom */
+/* Layout: left-aligned hero beside a live chat demo, ruled feature rows, one closing call to action */
 :root {
   --bg: #f6f8fc;
-  --side: #eceff6;
   --surface: #ffffff;
   --ink: #18223a;
-  --muted: #5d6a85;
-  --line: #dbe1ec;
-  --hover: #e2e7f1;
+  --muted: #55627d;
+  --line: #dbe2ef;
+  --soft: #e8efff;
   --accent: #2f6bff;
   --accent-ink: #ffffff;
-  --you: #e6ecf8;
   --chalk: #ffcf4a;
-  --danger: #c2413b;
-  --font-display: "Fredoka", "Nunito Sans", system-ui, sans-serif;
-  --font-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
-  --shadow: 0 1px 2px rgb(20 30 60 / .06), 0 6px 24px rgb(20 30 60 / .07);
+  --mark: rgb(255 207 74 / .75);
+  --shadow: 0 1px 2px rgb(20 30 60 / .06), 0 18px 50px rgb(20 30 60 / .10);
+  --display: "Fredoka", "Nunito Sans", system-ui, sans-serif;
+  --body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #12161f; --side: #0d1017; --surface: #1b2130; --ink: #e8ecf5; --muted: #98a3bb; --line: #2a3243;
-    --hover: #222a3b; --accent: #6f98ff; --accent-ink: #0d1017; --you: #222b3e; --chalk: #ffd666; --danger: #ff7b72;
-    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 6px 24px rgb(0 0 0 / .25); color-scheme: dark;
+  :root {
+    --bg: #0f1424; --surface: #171e33; --ink: #e8edf8; --muted: #9aa6c2; --line: #2a3452; --soft: #1e2a4a;
+    --accent: #6f98ff; --accent-ink: #0f1424; --chalk: #ffd666; --mark: rgb(255 214 102 / .32);
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 18px 50px rgb(0 0 0 / .35); color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
-  --bg: #12161f; --side: #0d1017; --surface: #1b2130; --ink: #e8ecf5; --muted: #98a3bb; --line: #2a3243;
-  --hover: #222a3b; --accent: #6f98ff; --accent-ink: #0d1017; --you: #222b3e; --chalk: #ffd666; --danger: #ff7b72;
-  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 6px 24px rgb(0 0 0 / .25); color-scheme: dark;
-}
 * { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html, body { height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.6; overflow: hidden; }
-button { font: inherit; color: inherit; }
-button:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-svg { width: 18px; height: 18px; flex: none; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-text-size-adjust: 100%; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 
-.shell { display: flex; height: 100%; padding-top: env(safe-area-inset-top, 0px); }
+/* header */
+header { padding-block: 18px; }
+header .wrap { display: flex; align-items: center; gap: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 600 24px var(--display); }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 600 19px var(--display); position: relative; flex: none; }
+.avatar::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; background: var(--chalk); border: 2px solid var(--bg); }
+nav { margin-left: auto; display: flex; align-items: center; gap: 22px; font-size: 15px; font-weight: 600; }
+nav a.link { text-decoration: none; color: var(--muted); }
+nav a.link:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font: 700 16px var(--body); padding: 12px 22px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); border: 2px solid var(--accent); transition: transform .15s, box-shadow .15s; }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgb(47 107 255 / .3); }
+.btn.ghost { background: none; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--ink); box-shadow: none; }
+.btn.small { padding: 8px 16px; font-size: 14.5px; }
+@media (max-width: 640px) { nav a.link { display: none; } }
 
-/* Sidebar */
-aside { width: 272px; flex: none; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 12px 10px; padding-left: max(10px, env(safe-area-inset-left, 0px)); gap: 6px; transition: margin .2s, transform .2s; }
-.shell.collapsed aside { margin-left: -272px; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 10px; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 600; font-size: 16px; flex: none; position: relative; }
-.avatar::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--chalk); border: 2px solid var(--side); }
-.brand b { font-family: var(--font-display); font-weight: 600; font-size: 20px; flex: 1; }
-.iconbtn { background: none; border: 0; border-radius: 8px; padding: 7px; cursor: pointer; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
-.iconbtn:hover { background: var(--hover); color: var(--ink); }
-.newchat { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; }
-.newchat:hover { border-color: var(--accent); color: var(--accent); }
-.side-label { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 12px 8px 2px; }
-.history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
-.hitem { display: flex; align-items: center; border-radius: 8px; }
-.hitem:hover, .hitem.active { background: var(--hover); }
-.hitem button.open { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 7px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
-.hitem .del { opacity: 0; padding: 5px; }
-.hitem:hover .del, .hitem.active .del, .hitem .del:focus-visible { opacity: 1; }
-.hempty { color: var(--muted); font-size: 13.5px; padding: 6px 8px; }
-.aboutlink { font-size: 13px; font-weight: 600; color: var(--muted); padding: 2px 8px 8px; text-decoration: none; }
-.aboutlink:hover { color: var(--accent); }
-.side-foot { border-top: 1px solid var(--line); padding: 10px 6px 4px; font-size: 12.5px; color: var(--muted); padding-bottom: max(4px, env(safe-area-inset-bottom, 0px)); }
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.02fr); gap: clamp(28px, 5vw, 64px); align-items: center; padding-block: clamp(28px, 6vw, 72px) clamp(40px, 7vw, 88px); }
+.eyebrow { margin: 0 0 14px; font: 700 13px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font: 600 clamp(40px, 6.4vw, 68px)/1.04 var(--display); letter-spacing: -.01em; text-wrap: balance; }
+h1 .mark { background: linear-gradient(transparent 64%, var(--mark) 64% 93%, transparent 93%); padding-inline: .06em; }
+.lead { margin: 22px 0 0; max-width: 33ch; font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.fine { margin: 16px 0 0; font-size: 14px; color: var(--muted); }
+@media (max-width: 880px) { .hero { grid-template-columns: 1fr; } .lead { max-width: 42ch; } }
 
-/* Main */
-main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
-.topbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; padding-right: max(12px, env(safe-area-inset-right, 0px)); min-height: 52px; }
-.topbar .title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 14px; }
-.shell:not(.collapsed) .topbar .open-side { display: none; }
-.account:empty { display: none; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.settings-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.settings-btn:hover { border-color: var(--accent); }
-.popover { position: absolute; top: 52px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 20; width: min(320px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-.popover label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
-.popover select, .popover input { font: 14px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
-.brainbtn { text-align: left; font-size: 13.5px; }
-#brainRows { display: flex; flex-direction: column; gap: 10px; }
-.prov { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
-.prov.on { border-color: var(--accent); }
-.prov b { font: 600 15px var(--font-display); }
-.prov .about { font-size: 12.5px; color: var(--muted); }
-.prov .row { display: flex; gap: 6px; align-items: center; }
-.prov .row input[type="password"], .prov .row input[type="text"] { flex: 1; min-width: 0; }
-.prov .check { flex-direction: row; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); font-weight: 400; }
-.prov .check input { width: auto; }
-.prov .result { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
-.prov .result.ok { color: #2fa36b; } .prov .result.bad { color: var(--danger); }
-.prov .btn { padding: 8px 12px; font-size: 13px; }
-.popover .hint { font-size: 12px; color: var(--muted); margin: 0; }
+/* chat demo */
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
+.tabs { display: flex; gap: 4px; padding: 10px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; border: 0; background: none; font: 700 14px var(--body); color: var(--muted); padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.panel { padding: 20px 18px 22px; display: flex; flex-direction: column; gap: 14px; min-height: 330px; }
+.panel[hidden] { display: none; }
+.msg { display: flex; gap: 10px; align-items: flex-start; max-width: 100%; }
+.msg .avatar { width: 28px; height: 28px; font-size: 14px; margin-top: 3px; }
+.msg .avatar::after { display: none; }
+.bubble { background: var(--soft); border-radius: 4px 16px 16px 16px; padding: 10px 14px; font-size: 15.5px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.bubble p { margin: 0 0 8px; } .bubble p:last-child { margin: 0; }
+.bubble ul { margin: 2px 0 8px; padding-left: 20px; }
+.me { justify-content: flex-end; }
+.me .bubble { background: var(--ink); color: var(--bg); border-radius: 16px 4px 16px 16px; }
+.codebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; padding: 7px 8px 7px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font: 12.5px var(--mono); color: var(--muted); }
+.codebar span.grow { flex: 1; }
+.codebar b { font: 700 12px var(--body); padding: 3px 9px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); }
+.codebar i { font: 600 12px var(--body); font-style: normal; padding: 3px 9px; }
+.score { font: 700 13px var(--body); color: var(--accent); }
 
-.scroller { flex: 1; overflow-y: auto; min-height: 0; }
-.column { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.thread { display: flex; flex-direction: column; gap: 22px; padding-block: 12px 24px; }
+/* features */
+section { padding-block: clamp(36px, 6vw, 72px); }
+h2 { margin: 0 0 8px; font: 600 clamp(30px, 4.4vw, 44px)/1.1 var(--display); text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); max-width: 52ch; }
+.rows { margin-top: 34px; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 12px 40px; padding-block: 26px; border-bottom: 1px solid var(--line); }
+.row h3 { margin: 0; font: 600 23px/1.2 var(--display); }
+.row p { margin: 0 0 8px; max-width: 62ch; } .row p:last-child { margin: 0; }
+.row .what { font-weight: 700; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tags span { font: 600 13px var(--body); padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+@media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 8px; } }
 
-.welcome { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding-top: 8vh; }
-.welcome .avatar { width: 56px; height: 56px; font-size: 28px; }
-.welcome .avatar::after { width: 14px; height: 14px; border-color: var(--bg); }
-.welcome h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 5vw, 34px); margin: 6px 0 0; text-wrap: balance; line-height: 1.2; }
-.welcome p { color: var(--muted); margin: 0; max-width: 46ch; }
-.modes { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin-top: 8px; }
-.modes button { border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 13.5px; padding: 5px 13px; border-radius: 999px; cursor: pointer; }
-.modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
-.starters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; margin-top: 14px; }
-.starters button { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-size: 14px; }
-.starters button span { display: block; color: var(--muted); font-size: 12.5px; }
-.starters button:hover { border-color: var(--accent); }
-@media (max-width: 520px) { .starters { grid-template-columns: 1fr; } }
-
-.turn-user { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.turn-user .bubble { background: var(--you); border-radius: 18px 18px 4px 18px; padding: 9px 15px; max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
-.turn-max { display: flex; gap: 12px; align-items: flex-start; }
-.turn-max .avatar { width: 28px; height: 28px; font-size: 14px; margin-top: 2px; }
-.turn-max .avatar::after { display: none; }
-.turn-max .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.body p { margin: 0 0 10px; } .body p:last-child { margin-bottom: 0; }
-.body ul, .body ol { margin: 4px 0 10px; padding-left: 22px; }
-.body li { margin: 2px 0; }
-.body h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 12px 0 4px; }
-.body code { font-family: var(--font-mono); font-size: 13px; background: var(--hover); padding: 1px 5px; border-radius: 5px; }
-.body pre { font-family: var(--font-mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); padding: 12px; border-radius: 10px; overflow-x: auto; margin: 8px 0; }
-.body pre code { background: none; padding: 0; }
-.codeblock { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 8px 0; background: var(--surface); }
-.codeblock pre { border: 0; border-radius: 0; margin: 0; max-height: 420px; overflow: auto; }
-.codehead { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 12px; background: var(--hover); font: 600 12px var(--font-mono); color: var(--muted); }
-.codehead .grow { flex: 1; }
-.codehead button { border: 0; background: none; font: 600 12px var(--font-body); color: var(--ink); padding: 4px 9px; border-radius: 6px; cursor: pointer; }
-.codehead button:hover { background: var(--surface); }
-.codehead button[data-cb="run"] { background: var(--accent); color: var(--accent-ink); }
-.sitebtn { font-weight: 600; font-size: 14px; }
-.sitebtn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sitebar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
-.sitelabel { font-weight: 700; }
-.sitebar .chip { padding: 3px 4px 3px 9px; border-radius: 999px; font: 12px var(--font-mono); max-width: 200px; }
-.sitebar .chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
-.addfile.host { border-style: solid; border-color: var(--accent); }
-.hostnote { flex-basis: 100%; font-size: 12.5px; color: var(--muted); }
-.hostnote.err { color: var(--danger); }
-.addfile { border: 1px dashed var(--line); background: none; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; color: var(--accent); }
-.modal { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / .45); display: grid; place-items: center; padding: 16px; overflow-y: auto; }
-.dlg { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 12px; max-height: 100%; overflow-y: auto; }
-.dlg h2 { margin: 0; font: 600 20px var(--font-display); }
-.dlg p { margin: 0; font-size: 14px; }
-.btn.big { display: block; width: 100%; padding: 12px 16px; font-size: 16px; text-align: center; text-decoration: none; }
-.setup { margin: 0; padding-left: 20px; font-size: 13.5px; display: flex; flex-direction: column; gap: 6px; }
-.copyline { display: block; font: 12.5px var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-top: 4px; user-select: all; overflow-wrap: anywhere; }
-#ghShare { border: 1px solid var(--accent); border-radius: 12px; padding: 12px; }
-#ghOauth, #ghDevice, #ghRepos, #ghSetup, #ghShare { display: flex; flex-direction: column; gap: 10px; }
-.devcode { font: 600 30px var(--font-mono); letter-spacing: .12em; text-align: center; padding: 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--bg); user-select: all; }
-#tokenWay > summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--muted); }
-#tokenWay[open] { display: flex; flex-direction: column; gap: 12px; }
-.picklist button { text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 10px; font: 13px var(--font-mono); color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
-.picklist button:hover { background: var(--hover); }
-.picklist button span { display: block; font: 11.5px var(--font-body); color: var(--muted); }
-.dlg h3 { margin: 6px 0 -4px; font: 600 15px var(--font-display); display: flex; align-items: center; gap: 7px; }
-.dlg h3 span { font: 11.5px var(--font-body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.deploy { padding: 6px 12px; font-size: 12.5px; border-top: 1px solid var(--line); line-height: 1.9; }
-.puball .deploy { border: 0; padding: 0; flex-basis: 100%; }
-.deploy .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--chalk); margin-right: 7px; }
-.deploy.ok .dot { background: #2fa36b; } .deploy.bad .dot { background: var(--danger); }
-.deploy.wait .dot { animation: pulse 1s infinite ease-in-out; }
-.deploy pre { margin: 4px 0 0; line-height: 1.5; max-height: 140px; overflow: auto; font: 11.5px var(--font-mono); white-space: pre-wrap; color: var(--danger); }
-.deploy button { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; }
-.dlg .hint, .dlg details { font-size: 12.5px; color: var(--muted); }
-.dlg details ol { margin: 6px 0 0; padding-left: 18px; }
-.dlg label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
-.dlg input { font: 15px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; width: 100%; }
-.dlgrow { display: flex; gap: 8px; align-items: center; }
-.dlgrow .grow { flex: 1; }
-.btn { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; border-radius: 10px; padding: 9px 16px; cursor: pointer; }
-.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
-.btn.danger { color: var(--danger); }
-.btn:disabled { opacity: .5; }
-.picklist { overflow-y: auto; max-height: 46vh; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; }
-.picklist label { flex-direction: row; align-items: center; gap: 9px; padding: 8px 10px; font: 13px var(--font-mono); color: var(--ink); border-bottom: 1px solid var(--line); cursor: pointer; overflow-wrap: anywhere; }
-.picklist label:last-child { border-bottom: 0; }
-.picklist input { width: auto; }
-.picklist .none { padding: 12px; color: var(--muted); font-size: 13px; }
-.actions .brain.ok { color: #2fa36b; }
-.warnbox { border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
-.stepline { font-size: 13px; color: var(--muted); padding-left: 40px; margin-block: -10px; overflow-wrap: anywhere; }
-.puball { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
-.puball .pubnote { border: 0; padding: 0; flex: 1; min-width: 200px; }
-.puball .btn.warn { background: var(--danger); color: var(--surface); }
-.codehead button[data-cb="publish"] { background: var(--ink); color: var(--bg); }
-.codehead button[data-cb="publish"].warn { background: var(--danger); color: var(--surface); }
-.codehead button:disabled { opacity: .6; cursor: default; }
-.pubnote { padding: 6px 12px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
-.pubnote.err { color: var(--danger); }
-.runner { position: absolute; inset: 0; z-index: 26; background: var(--bg); display: flex; flex-direction: column; }
-.runbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 600; }
-.runbar .grow { flex: 1; }
-.runner iframe { flex: 1; width: 100%; border: 0; background: #fff; }
-.thinking { color: var(--muted); font-style: italic; }
-.thinking::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite ease-in-out; vertical-align: middle; }
-@keyframes pulse { 50% { opacity: .2; } }
-.actions { display: flex; gap: 2px; margin-top: 4px; margin-left: -6px; }
-.actions .iconbtn { padding: 5px; }
-.actions .brain { font: 11px var(--font-mono); color: var(--muted); align-self: center; margin-left: 6px; }
-.actions svg { width: 15px; height: 15px; }
-
-.files { display: flex; flex-wrap: wrap; gap: 6px; }
-.turn-user .files { justify-content: flex-end; max-width: 85%; }
-.chip { display: inline-flex; align-items: center; gap: 8px; max-width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px 6px 6px; font-size: 13px; }
-.chip .ficon { width: 30px; height: 30px; border-radius: 7px; background: var(--hover); display: grid; place-items: center; color: var(--accent); flex: none; font: 600 9.5px var(--font-mono); text-transform: uppercase; overflow: hidden; }
-.chip .ficon img { width: 100%; height: 100%; object-fit: cover; }
-.chip .meta { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
-.chip .meta b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chip .meta span { color: var(--muted); font-size: 11.5px; }
-.chip .meta span.err { color: var(--danger); }
-.chip .x { padding: 3px; }
-.chip .x svg { width: 14px; height: 14px; }
-
-/* Composer */
-.dock { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
-.composer { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 10px 10px 8px 14px; display: flex; flex-direction: column; gap: 8px; transition: border-color .15s; }
-.composer:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
-.composer.drag { border-color: var(--accent); border-style: dashed; }
-.composer textarea { border: 0; resize: none; background: none; color: var(--ink); font: 15.5px/1.5 var(--font-body); padding: 4px 0; max-height: 200px; outline: none; width: 100%; }
-.composer .row { display: flex; align-items: center; gap: 6px; }
-.composer .row .grow { flex: 1; }
-.mode-tag { font-size: 12.5px; color: var(--muted); font-weight: 600; }
-.send { width: 36px; height: 36px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: pointer; }
-.send:disabled { opacity: .35; cursor: default; }
-.foot { text-align: center; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
-.status { text-align: center; font-size: 12.5px; color: var(--danger); margin: 6px 0 0; min-height: 0; }
-.voicebtn { color: var(--accent); }
-.voice { position: absolute; inset: 0; z-index: 25; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px max(20px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); text-align: center; }
-.vstate { margin: 0; font-family: var(--font-display); font-size: 20px; color: var(--muted); }
-.orb { position: relative; width: min(56vw, 240px); aspect-ratio: 1; border: 0; background: none; cursor: pointer; padding: 0; border-radius: 50%; }
-.orb .core { position: absolute; inset: 18%; border-radius: 50%; background: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--accent) 55%, white), var(--accent) 62%, color-mix(in srgb, var(--accent) 70%, black)); color: var(--accent-ink); display: grid; place-items: center; font: 600 clamp(40px, 12vw, 64px) var(--font-display); box-shadow: 0 10px 40px color-mix(in srgb, var(--accent) 45%, transparent); transition: transform .25s; }
-.orb .ring { position: absolute; inset: 18%; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
-.orb[data-state="listening"] .ring { animation: ripple 2.2s infinite ease-out; }
-.orb[data-state="listening"] .r2 { animation-delay: 1.1s; }
-.orb[data-state="listening"] .core { animation: breathe 2.2s infinite ease-in-out; }
-.orb[data-state="thinking"] .core { animation: wobble 1.1s infinite ease-in-out; }
-.orb[data-state="speaking"] .core { animation: talk .55s infinite ease-in-out alternate; }
-.orb[data-state="speaking"] .r1 { opacity: .35; inset: 10%; border-color: var(--chalk); animation: talk .55s infinite ease-in-out alternate-reverse; }
-.orb[data-state="muted"] .core, .orb[data-state="off"] .core { filter: saturate(.25); opacity: .7; }
-@keyframes ripple { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.75); opacity: 0; } }
-@keyframes breathe { 50% { transform: scale(1.05); } }
-@keyframes wobble { 0%,100% { transform: scale(.94) rotate(-4deg); } 50% { transform: scale(1) rotate(4deg); } }
-@keyframes talk { from { transform: scale(.96); } to { transform: scale(1.1); } }
-.vcaption { margin: 0; max-width: 34ch; min-height: 4.8em; max-height: 9.6em; overflow: hidden; font-size: 17px; display: flex; flex-direction: column; justify-content: flex-end; }
-.vcaption.you { color: var(--muted); font-style: italic; }
-.vbar { display: flex; gap: 18px; }
-.vbtn { width: 60px; height: 60px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow); }
-.vbtn svg { width: 24px; height: 24px; }
-.vbtn[aria-pressed="true"] { background: var(--danger); color: var(--surface); border-color: transparent; }
-.vbtn.end { background: var(--ink); color: var(--bg); border-color: transparent; }
-.dropveil { position: absolute; inset: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 85%, transparent); display: grid; place-items: center; border: 2px dashed var(--accent); border-radius: 16px; margin: 8px; pointer-events: none; font-family: var(--font-display); font-size: 22px; color: var(--accent); }
-
-/* Phone: sidebar slides over */
-.scrim { display: none; }
-@media (max-width: 820px) {
-  aside { position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; transform: translateX(-100%); margin-left: 0 !important; padding-top: max(12px, env(safe-area-inset-top, 0px)); box-shadow: var(--shadow); }
-  .shell.side-open aside { transform: none; }
-  .shell.side-open .scrim { display: block; position: fixed; inset: 0; z-index: 35; background: rgb(0 0 0 / .35); }
-  .topbar .open-side { display: inline-flex !important; }
-  aside .close-side { display: inline-flex; }
-}
-@media (min-width: 821px) { aside .close-side { display: inline-flex; } }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* honest note and closing */
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: clamp(22px, 4vw, 34px); display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 12px 40px; }
+.note h2 { font-size: 26px; margin: 0; }
+.note ul { margin: 0; padding-left: 20px; } .note li { margin: 4px 0; }
+@media (max-width: 720px) { .note { grid-template-columns: 1fr; } }
+.sites { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 28px; }
+.site { display: flex; gap: 16px; align-items: flex-start; text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; transition: transform .15s, border-color .15s; }
+.site:hover { transform: translateY(-2px); border-color: var(--accent); }
+.site img { width: 52px; height: 52px; border-radius: 14px; flex: none; }
+.site b { font: 600 21px var(--display); display: block; margin-bottom: 4px; }
+.site p { margin: 0 0 10px; font-size: 15.5px; color: var(--muted); }
+.site .go { font-weight: 700; font-size: 15px; color: var(--accent); }
+.close { text-align: left; }
+.close h2 { font-size: clamp(34px, 6vw, 56px); }
+footer { padding-block: 30px calc(34px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); color: var(--muted); font-size: 14.5px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn, .site { transition: none; } }
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-side" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.5 12 20a5.5 5.5 0 0 1-7.8-7.8l8.8-8.7a3.7 3.7 0 0 1 5.2 5.2l-8.7 8.8a1.8 1.8 0 0 1-2.6-2.6l8-8"/></symbol>
-  <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
-  <symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4"/></symbol>
-  <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
-  <symbol id="i-micoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v2a3 3 0 0 0 4.6 2.5M15 10V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11 5.7M19 11a7 7 0 0 1-.6 2.8M12 18v3M4 4l16 16"/></symbol>
-  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.500 0 18M12 3c-3 3.500-3 14.500 0 18"/></symbol>
-  <symbol id="i-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
-  <symbol id="i-redo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></symbol>
-  <symbol id="i-tune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
-</svg>
+<header>
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="avatar" aria-hidden="true">M</span>Max</a>
+    <nav aria-label="Page">
+      <a class="link" href="#how">How he helps</a>
+      <a class="link" href="#more">What else he does</a>
+      <a class="link" href="#deluxe">Fast Edit</a>
+      <a class="btn small" href="/app/">Open Max</a>
+    </nav>
+  </div>
+</header>
 
-<div class="shell" id="shell">
-  <aside aria-label="Chats">
-    <div class="brand">
-      <div class="avatar" aria-hidden="true">M</div>
-      <b>Max</b>
-      <button class="iconbtn close-side" id="closeSide" type="button" aria-label="Hide sidebar"><svg><use href="#i-side"/></svg></button>
-    </div>
-    <button class="newchat" id="newChat" type="button"><svg><use href="#i-plus"/></svg>New lesson</button>
-    <button class="newchat sitebtn" id="siteBtn" type="button"><svg><use href="#i-globe"/></svg><span id="siteBtnText">Connect a website</span></button>
-    <div class="side-label">Recent</div>
-    <div class="history" id="history"></div>
-    <div class="side-foot" id="sideFoot">Chats are saved only in this browser. Sign in with Deluxe Main to keep them on every device.</div>
-    <a class="aboutlink" href="/about/">About Max</a>
-  </aside>
-  <div class="scrim" id="scrim"></div>
-
-  <main id="main">
-    <div class="topbar">
-      <button class="iconbtn open-side" id="openSide" type="button" aria-label="Show chats"><svg><use href="#i-side"/></svg></button>
-      <div class="title" id="title"></div>
-      <div id="account" class="account"></div>
-      <button class="settings-btn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="popover"><svg><use href="#i-tune"/></svg><span class="sr">Settings</span></button>
-    </div>
-    <div class="popover" id="popover" hidden>
-      <button class="btn ghost brainbtn" id="brainBtn" type="button">Max's brain: free AI</button>
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <p class="eyebrow">AI tutor</p>
+      <h1>A tutor that makes you <span class="mark">think</span>.</h1>
+      <p class="lead">Max explains one small step at a time, quizzes you, and gives hints instead of answers. Type to him, talk to him, or hand him your notes.</p>
+      <div class="cta">
+        <a class="btn" href="/app/">Open Max</a>
+        <a class="btn ghost" href="#how">See how he teaches</a>
+      </div>
+      <p class="fine">Works on phones and computers. No download.</p>
     </div>
 
-    <div class="scroller" id="scroller">
-      <div class="column">
-        <section class="welcome" id="welcome">
-          <div class="avatar" aria-hidden="true">M</div>
-          <h1 id="greeting">What do you want to learn today?</h1>
-          <p>Ask a question, or attach your notes, homework or a worksheet. Max will explain it step by step.</p>
-          <div class="modes" role="group" aria-label="How Max helps">
-            <button type="button" data-mode="haiku" aria-pressed="false" title="Fastest. Quick answers.">Haiku</button>
-            <button type="button" data-mode="sonnet" aria-pressed="true" title="Balanced. Good for most questions.">Sonnet</button>
-            <button type="button" data-mode="opus" aria-pressed="false" title="Stronger. A bigger model that thinks a fair bit.">Opus</button>
-            <button type="button" data-mode="ultra" aria-pressed="false" title="Smartest. Thinks hardest, so it is slower.">Ultra</button>
-            <button type="button" data-mode="code" aria-pressed="false" title="Writes code, and edits your website when one is connected.">Code</button>
-          </div>
-          <div class="starters" id="starters">
-            <button type="button" data-mode="sonnet">Explain photosynthesis<span>Simply, with an example</span></button>
-            <button type="button" data-mode="sonnet">Help me solve 3x + 5 = 20<span>Hints only, no answer</span></button>
-            <button type="button" data-mode="haiku">Quiz me on the planets<span>One question at a time</span></button>
-            <button type="button" data-mode="code">Make a tic-tac-toe game<span>Max writes it, you run it</span></button>
-          </div>
-        </section>
-        <div class="thread" id="thread"></div>
+    <div class="demo" id="how">
+      <div class="tabs" role="tablist" aria-label="How Max teaches">
+        <button role="tab" id="t-teach" aria-selected="true" aria-controls="p-teach">Teach me</button>
+        <button role="tab" id="t-quiz" aria-selected="false" aria-controls="p-quiz" tabindex="-1">Quiz me</button>
+        <button role="tab" id="t-hint" aria-selected="false" aria-controls="p-hint" tabindex="-1">Hints only</button>
+        <button role="tab" id="t-code" aria-selected="false" aria-controls="p-code" tabindex="-1">Code</button>
+      </div>
+
+      <div class="panel" id="p-teach" role="tabpanel" aria-labelledby="t-teach">
+        <div class="msg me"><div class="bubble">Why is 1/2 bigger than 1/3?</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Picture one pizza.</p>
+          <ul><li>Cut it into <b>2</b> pieces: each slice is <b>1/2</b>.</li><li>Cut the same pizza into <b>3</b> pieces: each slice is <b>1/3</b>.</li></ul>
+          <p>More cuts means smaller slices, so 1/2 is bigger.</p>
+          <p><b>Your turn:</b> which is bigger, 1/4 or 1/5? Tell me why.</p>
+        </div></div>
+      </div>
+
+      <div class="panel" id="p-quiz" role="tabpanel" aria-labelledby="t-quiz" hidden>
+        <div class="msg me"><div class="bubble">Quiz me on the planets.</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble"><p>Question 1: which planet is closest to the Sun?</p></div></div>
+        <div class="msg me"><div class="bubble">Mercury</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Right. Mercury orbits about 58 million km from the Sun. <span class="score">Score: 1/1</span></p>
+          <p>Question 2: which planet is the biggest?</p>
+        </div></div>
+      </div>
+
+      <div class="panel" id="p-hint" role="tabpanel" aria-labelledby="t-hint" hidden>
+        <div class="msg me"><div class="bubble">Help me solve 3x + 5 = 20</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Let's work it out together. What would you do first to get the x term on its own?</p>
+          <p><b>Hint:</b> what is the 5 doing to 3x?</p>
+        </div></div>
+        <div class="msg me"><div class="bubble">subtract 5?</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble"><p>Yes. Do it to both sides. What do you get?</p></div></div>
+      </div>
+
+      <div class="panel" id="p-code" role="tabpanel" aria-labelledby="t-code" hidden>
+        <div class="msg me"><div class="bubble">Make a tic-tac-toe game</div></div>
+        <div class="msg"><span class="avatar" aria-hidden="true">M</span><div class="bubble">
+          <p>Here is a complete page you can run.</p>
+          <div class="codebar"><span>index.html</span><span class="grow"></span><b>▶ Run</b><i>Copy</i><i>Publish</i></div>
+          <p style="margin-top:10px">It draws a 3 by 3 grid and checks for a winner after every move. Try changing the colors.</p>
+        </div></div>
       </div>
     </div>
+  </div>
 
-    <div class="dock">
-      <div class="column">
-        <form class="composer" id="composer">
-          <div class="sitebar" id="siteBar" hidden>
-            <span class="sitelabel" id="siteLabel"></span>
-            <span class="files" id="siteFiles"></span>
-            <button class="addfile" id="siteToggle" type="button" title="Code without changing this website">Pause</button>
-            <button class="addfile" id="siteAdd" type="button">+ File</button>
-            <button class="addfile host" id="siteHost" type="button">Put it online</button>
-            <span class="hostnote" id="siteHostNote" hidden></span>
-          </div>
-          <div class="files" id="pending" hidden></div>
-          <textarea id="input" rows="1" placeholder="Ask Max anything…" aria-label="Message Max"></textarea>
-          <div class="row">
-            <button class="iconbtn" id="attach" type="button" aria-label="Attach files" title="Attach files (PDF, Word, text, code, images)"><svg><use href="#i-clip"/></svg></button>
-            <input id="fileInput" type="file" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.rb,.go,.rs,.php,.sql,.xml,.yaml,.yml,.tex,.rtf,image/*,text/*">
-            <span class="mode-tag" id="modeTag">Sonnet</span>
-            <span class="grow"></span>
-            <button class="iconbtn voicebtn" id="voiceBtn" type="button" aria-label="Talk to Max" title="Talk to Max"><svg><use href="#i-wave"/></svg></button>
-            <button class="send" id="send" type="submit" aria-label="Send" disabled><svg><use href="#i-up"/></svg></button>
-          </div>
-        </form>
-        <p class="status" id="status" hidden></p>
-        <p class="foot">Max can make mistakes. Check important answers.</p>
-      </div>
-    </div>
-    <div class="modal" id="siteDlg" hidden>
-      <form class="dlg" id="siteForm">
-        <h2>Connect a website</h2>
-        <p>Max edits the website's files on <b>GitHub</b>. Your host (Vercel, Netlify and others) then rebuilds the site by itself, and Max tells you when the change is live.</p>
-        <div id="ghOauth" hidden>
-          <button class="btn big" id="ghConnect" type="button">Connect GitHub</button>
-          <div id="ghSetup" hidden>
-            <p><b>One-time setup.</b> GitHub only shows its Authorize screen for apps it knows, so Max has to be registered with GitHub once. After this, connecting is just a tap.</p>
-            <ol class="setup">
-              <li>Open <a href="https://github.com/settings/applications/new" target="_blank" rel="noopener">GitHub → New OAuth App</a>.</li>
-              <li>Name: <b>Max Tutor</b>. Put this address in both <b>Homepage URL</b> and <b>Authorization callback URL</b>:<span class="copyline" id="ghOrigin"></span></li>
-              <li>Tick <b>Enable Device Flow</b>, then tap <b>Register application</b>.</li>
-              <li>Copy the <b>Client ID</b> it shows (it starts with Ov23) and paste it here. Don't make a client secret.</li>
-            </ol>
-            <input id="ghClientId" type="text" placeholder="Client ID, e.g. Ov23li…" autocomplete="off" autocapitalize="off" spellcheck="false">
-            <button class="btn big" id="ghSetupGo" type="button">Continue</button>
-          </div>
-          <div id="ghDevice" hidden>
-            <p>Tap the button to copy this code, then paste it on GitHub and approve:</p>
-            <div class="devcode" id="ghCode"></div>
-            <a class="btn big" id="ghOpen" href="https://github.com/login/device" target="_blank" rel="noopener">Copy code and open GitHub</a>
-            <p class="hint" id="ghWait">Waiting for you to approve on GitHub…</p>
-          </div>
-          <div id="ghShare" hidden>
-            <p><b>Make it easy for everyone.</b> Save this setup into Max so nobody has to do it again, on any device.</p>
-            <button class="btn big" id="ghShareGo" type="button">Save for everyone</button>
-            <p class="hint" id="ghShareNote"></p>
-          </div>
-          <div id="ghRepos" hidden>
-            <p>Which website should Max work on?</p>
-            <input id="ghRepoFilter" type="text" placeholder="Search your repositories…" autocomplete="off" autocapitalize="off">
-            <div class="picklist" id="ghRepoList"></div>
-          </div>
+  <div class="wrap" id="more">
+    <h2>More than answers</h2>
+    <p class="sub">Max works with what you actually have: your notes, your voice, your own website.</p>
+    <div class="rows">
+      <div class="row">
+        <h3>Pick how hard he thinks</h3>
+        <div>
+          <p><span class="what">Haiku</span> is the fastest. Short answers in a blink.</p>
+          <p><span class="what">Sonnet</span> is the balanced one, good for most questions.</p>
+          <p><span class="what">Opus</span> is a step up: a bigger model that thinks a fair bit.</p>
+          <p><span class="what">Ultra</span> thinks the hardest and takes longest. Use it for the tough stuff.</p>
+          <p><span class="what">Code</span> writes complete programs and pages.</p>
+          <p>Ask for a style whenever you like: "teach me", "quiz me" or "hints only".</p>
         </div>
-        <details id="tokenWay"><summary>Use access tokens instead</summary>
-        <h3><img src="https://cdn.simpleicons.org/github/888" alt="" width="16" height="16">GitHub</h3>
-        <label>GitHub repository
-          <input id="siteRepo" type="text" placeholder="owner/name, e.g. Meee-Me/my-site" autocomplete="off" autocapitalize="off" spellcheck="false">
-        </label>
-        <label>GitHub access token
-          <input id="siteToken" type="password" placeholder="github_pat_…" autocomplete="off">
-        </label>
-        <details><summary>How do I get a token?</summary>
-          <ol>
-            <li>On github.com open <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens</b>.</li>
-            <li>Tap <b>Generate new token</b>. Under <b>Repository access</b> pick <b>Only select repositories</b> and choose this one repository.</li>
-            <li>Under <b>Permissions → Repository</b>, set <b>Contents</b> to <b>Read and write</b>. To let Max see when the site is live, also set <b>Commit statuses</b> and <b>Deployments</b> to <b>Read-only</b>.</li>
-            <li>Generate it, copy it, and paste it here.</li>
-          </ol>
-        </details>
-        <h3><img src="https://cdn.simpleicons.org/vercel/888" alt="" width="16" height="16">Vercel <span>optional</span></h3>
-        <label>Vercel token
-          <input id="vercelToken" type="password" placeholder="Leave empty if the site isn't on Vercel" autocomplete="off">
-        </label>
-        <details><summary>How do I get a Vercel token?</summary>
-          <ol>
-            <li>On vercel.com tap your picture → <b>Account Settings → Tokens</b>.</li>
-            <li>Tap <b>Create</b>, name it "Max", choose the team your site is in, and pick an expiry date.</li>
-            <li>Copy the token and paste it here.</li>
-          </ol>
-        </details>
-        <h3><img src="https://cdn.simpleicons.org/netlify/888" alt="" width="16" height="16">Netlify <span>optional</span></h3>
-        <label>Netlify token
-          <input id="netlifyToken" type="password" placeholder="Leave empty if the site isn't on Netlify" autocomplete="off">
-        </label>
-        <details><summary>How do I get a Netlify token?</summary>
-          <ol>
-            <li>On app.netlify.com tap your picture → <b>User settings → Applications</b>.</li>
-            <li>Under <b>Personal access tokens</b> tap <b>New access token</b>, name it "Max".</li>
-            <li>Copy the token and paste it here.</li>
-          </ol>
-        </details>
-        <p class="hint">Vercel and Netlify tokens are only needed if you want Max to read build error logs. He only reads from them.</p>
-        <button class="btn" id="siteGo" type="submit">Connect with tokens</button>
-        </details>
-        <p class="hint">Your GitHub access stays in this browser. When you use Connect GitHub it passes through Max's server once, on its way from GitHub to you, and is not kept there. It is never sent to Max's AI. The files Max opens are sent to his AI service, so don't connect a repository with secrets in it.</p>
-        <p class="status" id="siteErr" hidden></p>
-        <div class="dlgrow">
-          <button class="btn ghost danger" id="siteOff" type="button" hidden>Disconnect</button>
-          <span class="grow"></span>
-          <button class="btn ghost" id="siteCancel" type="button">Close</button>
+      </div>
+      <div class="row">
+        <h3>Bring your own material</h3>
+        <div>
+          <p>Attach it, drag it in, or paste it. Max reads it and teaches from it.</p>
+          <div class="tags"><span>PDF</span><span>Word</span><span>Text and Markdown</span><span>Code files</span><span>Photos of notes</span></div>
         </div>
-      </form>
-    </div>
-    <div class="modal" id="brainDlg" hidden>
-      <div class="dlg">
-        <h2>Max's brain</h2>
-        <p>Max always has his free AI. Connect stronger ones here and he tries them first, strongest first, and falls back to the next when one is busy or out of free use.</p>
-        <div id="brainRows"></div>
-        <p class="hint">Keys stay in this browser. With each question, a key goes through Max's server to its own provider only, and is not stored there. Your questions and any files Max opens are sent to the provider that answers.</p>
-        <div class="dlgrow"><span class="grow"></span><button class="btn" id="brainDone" type="button">Done</button></div>
+      </div>
+      <div class="row">
+        <h3>Talk to him</h3>
+        <div><p>Tap the wave button. Max listens, answers out loud in short sentences, and stops when you interrupt him.</p></div>
+      </div>
+      <div class="row">
+        <h3>Build real things</h3>
+        <div>
+          <p><span class="what">Code mode</span> writes complete pages and scripts. Press Run to try them without leaving the chat.</p>
+          <p><span class="what">Edit website mode</span> changes a site that lives on GitHub. Max looks through the files, makes the smallest change, checks his own work, and publishes only when you tap twice. One more button puts the site online.</p>
+        </div>
+      </div>
+      <div class="row">
+        <h3>Pick up where you left off</h3>
+        <div><p>Lessons are saved in the sidebar. Sign in with Deluxe Main and they follow you to every device.</p></div>
       </div>
     </div>
-    <div class="modal" id="pickDlg" hidden>
-      <div class="dlg">
-        <h2>Files Max can see</h2>
-        <input id="pickFilter" type="text" placeholder="Search files…" autocomplete="off" autocapitalize="off">
-        <div class="picklist" id="pickList"></div>
-        <div class="dlgrow"><span class="grow"></span><button class="btn" id="pickDone" type="button">Done</button></div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <div class="note">
+        <h2>Straight talk</h2>
+        <ul>
+          <li>Max is an AI and can be wrong. Check anything important.</li>
+          <li>Lessons stay in your browser unless you sign in.</li>
+          <li>Your questions, and any file you attach, go to the AI service that answers them. Leave private things out.</li>
+        </ul>
       </div>
     </div>
-    <section class="runner" id="runner" hidden aria-label="Running Max's code">
-      <div class="runbar"><span>Running Max's code</span><span class="grow"></span>
-        <button class="iconbtn" id="rerun" type="button" aria-label="Run again" title="Run again"><svg><use href="#i-redo"/></svg></button>
-        <button class="iconbtn" id="runClose" type="button" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
-      <iframe id="runFrame" sandbox="allow-scripts allow-modals" title="Code preview"></iframe>
-    </section>
-    <section class="voice" id="voice" hidden aria-label="Talk to Max">
-      <p class="vstate" id="vstate" aria-live="polite">Listening…</p>
-      <button class="orb" id="orb" type="button" data-state="listening" aria-label="Tap to interrupt Max">
-        <span class="ring r1"></span><span class="ring r2"></span><span class="core">M</span>
-      </button>
-      <p class="vcaption" id="vcaption"></p>
-      <div class="vbar">
-        <button class="vbtn" id="vmute" type="button" aria-pressed="false" aria-label="Mute microphone"><svg><use href="#i-mic"/></svg></button>
-        <button class="vbtn end" id="vclose" type="button" aria-label="End voice chat"><svg><use href="#i-x"/></svg></button>
+  </section>
+
+  <section id="deluxe">
+    <div class="wrap">
+      <h2>Also on Deluxe</h2>
+      <p class="sub">Max signs in with Deluxe Main, the one account for every Deluxe website.</p>
+      <div class="sites">
+        <a class="site" href="https://fast-edit-nine.vercel.app/">
+          <img src="https://deluxe-main.vercel.app/icons/edit.svg" alt="" width="52" height="52">
+          <div>
+            <b>Fast Edit</b>
+            <p>A photo and video editor with its own AI. It runs on your device, so there is no account to make, and your photos never leave your computer.</p>
+            <span class="go">Open Fast Edit →</span>
+          </div>
+        </a>
+        <a class="site" href="https://deluxe-main.vercel.app/">
+          <img src="https://deluxe-main.vercel.app/icons/main.svg" alt="" width="52" height="52">
+          <div>
+            <b>Deluxe Main</b>
+            <p>Your Deluxe account. Sign in once and every Deluxe website knows you, with your lessons and settings saved.</p>
+            <span class="go">Open Deluxe Main →</span>
+          </div>
+        </a>
       </div>
-    </section>
-    <div class="dropveil" id="dropveil" hidden>Drop files for Max to read</div>
-  </main>
-</div>
+    </div>
+  </section>
 
-<script type="module">
-const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-const MAMMOTH = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
-const TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-const FILE_CHAR_LIMIT = 60000;  // what we keep from each file
-const MAX_FILE_MB = 25;
+  <section class="close">
+    <div class="wrap">
+      <h2>Ask Max something.</h2>
+      <p class="sub">Start with whatever you are stuck on right now.</p>
+      <div class="cta"><a class="btn" href="/app/">Open Max</a></div>
+    </div>
+  </section>
+</main>
 
-const MODES = {
-  haiku:  { label: "Haiku" },
-  sonnet: { label: "Sonnet" },
-  opus:   { label: "Opus" },
-  ultra:  { label: "Ultra" },
-  code:   { label: "Code" },
-};
-const TIERS = { haiku: "light", sonnet: "standard", opus: "high", ultra: "heavy", code: "heavy" };
+<footer>
+  <div class="wrap">
+    <span>Max Tutor</span>
+    <span>Signs in with <a href="https://deluxe-main.vercel.app/">Deluxe Main</a> · Also on Deluxe: <a href="https://fast-edit-nine.vercel.app/">Fast Edit</a></span>
+  </div>
+</footer>
 
-const $ = (id) => document.getElementById(id);
-const shell = $("shell"), thread = $("thread"), welcome = $("welcome"), input = $("input"), sendBtn = $("send");
-const scroller = $("scroller"), pendingEl = $("pending"), statusEl = $("status");
-
-/* ---------- storage ---------- */
-const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
-};
-let chats = store.get("max.chats", []);
-let prefs = store.get("max.prefs", { level: "High school", subject: "", mode: "sonnet", collapsed: false });
-{ const old = { teach: "sonnet", quiz: "sonnet", hint: "sonnet", site: "code" }[prefs.mode]; if (old) prefs.mode = old; if (!(prefs.mode in { haiku: 1, sonnet: 1, opus: 1, ultra: 1, code: 1 })) prefs.mode = "sonnet"; }
-let current = null;      // the open chat object
-let pending = [];        // files waiting to send: {id,name,size,kind,text,thumb,status}
-let busy = false, ctl = null;
-
-function saveChats(changed) {
-  if (changed) { changed.updated = Date.now(); cloudSave(changed); }
-  chats = chats.filter((c) => c.messages.length).slice(0, 50);
-  if (!store.set("max.chats", chats)) {
-    // too big: drop file text from older chats and try again
-    chats.forEach((c, i) => { if (i > 2) c.messages.forEach((m) => (m.files || []).forEach((f) => { f.text = ""; f.thumb = ""; })); });
-    store.set("max.chats", chats);
-  }
-}
-const savePrefs = () => { store.set("max.prefs", prefs); cloudPrefs(); };
-
-/* ---------- Deluxe Main sync ---------- */
-const D = window.Deluxe || null;
-const signedIn = () => !!(D && D.user());
-const dirty = new Set();
-let pushTimer = 0, prefsTimer = 0, synced = false;
-function slim(c) {
-  return { id: c.id, title: c.title, created: c.created, updated: c.updated || c.created,
-    messages: c.messages.map((m) => ({ role: m.role, content: m.content, model: m.model, auto: m.auto, step: m.step, notes: m.notes, check: m.check, checked: m.checked, problems: m.problems, files: (m.files || []).map(({ id, name, size, kind, text, status, cut }) => ({ id, name, size, kind, text, status, cut })) })) };
-}
-function cloudSave(c) {
-  if (!signedIn() || !c.messages.length) return;
-  dirty.add(c.id);
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(async () => {
-    const ids = [...dirty]; dirty.clear();
-    const put = ids.map((id) => chats.find((x) => x.id === id)).filter(Boolean).map((x) => ({ key: "chat/" + x.id, value: slim(x) }));
-    if (!put.length) return;
-    try { await D.data.batch({ put }); }
-    catch (e) { ids.forEach((id) => dirty.add(id)); console.warn("Deluxe sync:", e.message); }
-  }, 800);
-}
-function cloudDelete(id) { if (signedIn()) D.data.remove("chat/" + id).catch((e) => console.warn("Deluxe sync:", e.message)); }
-function cloudPrefs() {
-  if (!signedIn() || !synced) return;
-  clearTimeout(prefsTimer);
-  prefsTimer = setTimeout(() => { const { collapsed, ...p } = prefs; D.data.put("prefs", p).catch(() => {}); }, 800);
-}
-async function cloudLoad() {
-  if (!signedIn()) return;
-  try {
-    const [items, p] = await Promise.all([D.data.list({ prefix: "chat/", limit: 200 }), D.data.get("prefs")]);
-    const remote = items.map((it) => it.value).filter((c) => c && c.id && Array.isArray(c.messages));
-    const byId = new Map(remote.map((c) => [c.id, c]));
-    const toUpload = [];
-    for (const c of chats) {
-      const r = byId.get(c.id);
-      if (!r || (c.updated || 0) > (r.updated || 0)) { byId.set(c.id, c); toUpload.push(c); }
-    }
-    chats = [...byId.values()].sort((a, b) => (b.updated || b.created || 0) - (a.updated || a.created || 0));
-    if (p && typeof p === "object") { prefs = { ...prefs, ...p }; applyPrefs(); store.set("max.prefs", prefs); }
-    if (current && !chats.includes(current)) current = chats.find((c) => c.id === current.id) || current;
-    store.set("max.chats", chats);
-    synced = true;
-    toUpload.forEach(cloudSave);
-    if (!busy) { renderHistory(); renderThread(); }
-  } catch (e) { console.warn("Deluxe sync:", e.message); }
-}
-
-/* ---------- markdown ---------- */
-const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const inline = (s) => s.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-function md(src) {
-  let html = "";
-  const parts = esc(src).split(/```/);
-  parts.forEach((part, i) => {
-    if (i % 2) {
-      const info = ((part.match(/^([^\n]*)\n/) || [])[1] || "").trim(), closed = i < parts.length - 1;
-      const isEdit = /^edit:/i.test(info);
-      const path = /^(file|edit):/i.test(info) ? info.slice(5).trim().replace(/^\/+/, "") : "";
-      const lang = path ? (/\.html?$/i.test(path) ? "html" : /\.m?js$/i.test(path) ? "js" : "file") : info.split(/\s/)[0];
-      const runnable = closed && (isEdit ? lang === "html" : /^(html|js|javascript)$/i.test(lang));
-      html += `<div class="codeblock" data-lang="${lang.toLowerCase()}"${path ? ` data-path="${path.replace(/"/g, "")}" data-kind="${isEdit ? "edit" : "file"}"` : ""}><div class="codehead"><span>${path ? path + (isEdit ? " · edit" : "") : lang || "code"}</span><span class="grow"></span>` +
-        (runnable ? `<button type="button" data-cb="run">▶ Run</button>` : "") + (closed ? `<button type="button" data-cb="copy">Copy</button>` : "") + (closed && path ? `<button type="button" data-cb="publish">Publish</button>` : "") +
-        `</div><pre><code>${part.replace(/^[^\n]*\n/, "")}</code></pre></div>`;
-      return;
-    }
-    let list = null, para = [];
-    const fp = () => { if (para.length) { html += "<p>" + inline(para.join("<br>")) + "</p>"; para = []; } };
-    const fl = () => { if (list) { html += `</${list}>`; list = null; } };
-    for (const raw of part.split("\n")) {
-      const line = raw.trimEnd(); let m;
-      if (!line.trim()) { fp(); fl(); continue; }
-      if ((m = line.match(/^#{1,4}\s+(.*)/))) { fp(); fl(); html += "<h3>" + inline(m[1]) + "</h3>"; continue; }
-      if ((m = line.match(/^\s*[-*•]\s+(.*)/))) { fp(); if (list !== "ul") { fl(); html += "<ul>"; list = "ul"; } html += "<li>" + inline(m[1]) + "</li>"; continue; }
-      if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { fp(); if (list !== "ol") { fl(); html += "<ol>"; list = "ol"; } html += "<li>" + inline(m[1]) + "</li>"; continue; }
-      fl(); para.push(line);
-    }
-    fp(); fl();
-  });
-  return html;
-}
-
-/* ---------- files ---------- */
-const loaded = {};
-function loadScript(src) {
-  return loaded[src] ||= new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => { delete loaded[src]; rej(new Error("couldn't download the file reader")); }; document.head.appendChild(s); });
-}
-const ext = (name) => (name.split(".").pop() || "").toLowerCase();
-const fmtSize = (n) => n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB";
-function kindOf(file) {
-  const e = ext(file.name);
-  if (file.type === "application/pdf" || e === "pdf") return "pdf";
-  if (e === "docx") return "docx";
-  if (file.type.startsWith("image/")) return "image";
-  return "text";
-}
-async function extract(file, kind, onNote) {
-  if (kind === "pdf") {
-    await loadScript(PDFJS);
-    const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-    const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
-    let out = "";
-    for (let p = 1; p <= pdf.numPages && out.length < FILE_CHAR_LIMIT * 1.5; p++) {
-      onNote(`Reading page ${p} of ${pdf.numPages}…`);
-      const tc = await (await pdf.getPage(p)).getTextContent();
-      out += `\n[Page ${p}]\n` + tc.items.map((it) => it.str + (it.hasEOL ? "\n" : " ")).join("");
-    }
-    if (!out.replace(/\[Page \d+\]/g, "").trim()) throw new Error("this PDF has no text (it may be a scan). Try a photo of the page instead");
-    return out;
-  }
-  if (kind === "docx") {
-    await loadScript(MAMMOTH);
-    return (await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })).value;
-  }
-  if (kind === "image") {
-    onNote("Reading the text in the picture…");
-    await loadScript(TESSERACT);
-    const r = await window.Tesseract.recognize(file, "eng", { logger: (m) => { if (m.status === "recognizing text") onNote(`Reading the picture… ${Math.round(m.progress * 100)}%`); } });
-    const t = (r.data.text || "").trim();
-    if (!t) throw new Error("no readable text found in this picture");
-    return t;
-  }
-  const t = await file.text();
-  if (/\u0000/.test(t.slice(0, 2000))) throw new Error("Max can't read this kind of file");
-  return t;
-}
-function thumbOf(file) {
-  return new Promise((res) => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => { const c = document.createElement("canvas"); const s = 64 / Math.max(img.width, img.height); c.width = img.width * s; c.height = img.height * s; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", .7)); };
-    img.onerror = () => { URL.revokeObjectURL(url); res(""); };
-    img.src = url;
-  });
-}
-async function addFiles(list) {
-  for (const file of list) {
-    const f = { id: Math.random().toString(36).slice(2), name: file.name || "pasted-image.png", size: file.size, kind: kindOf(file), text: "", thumb: "", status: "Reading…", error: false };
-    if (file.size > MAX_FILE_MB * 1048576) { f.status = `Too big (max ${MAX_FILE_MB} MB)`; f.error = true; }
-    pending.push(f); renderPending(); updateSend();
-    if (f.error) continue;
-    if (f.kind === "image") { f.thumb = await thumbOf(file); renderPending(); }
-    try {
-      let text = (await extract(file, f.kind, (n) => { f.status = n; renderPending(); })).replace(/\n{3,}/g, "\n\n").trim();
-      f.cut = text.length > FILE_CHAR_LIMIT;
-      f.text = text.slice(0, FILE_CHAR_LIMIT);
-      f.status = f.cut ? `${fmtSize(f.size)} · only the first part is read` : fmtSize(f.size);
-    } catch (e) { f.error = true; f.status = "Couldn't read: " + (e.message || e); }
-    renderPending(); updateSend();
-  }
-}
-function chipHTML(f, removable) {
-  const icon = f.thumb ? `<img src="${f.thumb}" alt="">` : esc(ext(f.name).slice(0, 4) || "file");
-  return `<div class="chip" data-id="${f.id}"><div class="ficon">${icon}</div><div class="meta"><b title="${esc(f.name)}">${esc(f.name)}</b><span class="${f.error ? "err" : ""}">${esc(f.status || fmtSize(f.size))}</span></div>${removable ? `<button class="iconbtn x" type="button" aria-label="Remove ${esc(f.name)}"><svg><use href="#i-x"/></svg></button>` : ""}</div>`;
-}
-function renderPending() {
-  pendingEl.hidden = !pending.length;
-  pendingEl.innerHTML = pending.map((f) => chipHTML(f, true)).join("");
-}
-pendingEl.addEventListener("click", (e) => {
-  const x = e.target.closest(".x"); if (!x) return;
-  const id = x.closest(".chip").dataset.id; pending = pending.filter((f) => f.id !== id); renderPending(); updateSend();
-});
-$("attach").onclick = () => $("fileInput").click();
-$("fileInput").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
-input.addEventListener("paste", (e) => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } });
-let dragDepth = 0;
-const main = $("main"), veil = $("dropveil");
-main.addEventListener("dragenter", (e) => { if ([...e.dataTransfer.types].includes("Files")) { dragDepth++; veil.hidden = false; e.preventDefault(); } });
-main.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
-main.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; veil.hidden = true; } });
-main.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; veil.hidden = true; if (e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
-
-/* ---------- rendering ---------- */
-const svg = (id) => `<svg><use href="#i-${id}"/></svg>`;
-function renderMessage(m, i) {
-  if (m.step) { const el = document.createElement("div"); el.hidden = true; return el; } // "READ: …" requests are shown by the next line instead
-  if (m.auto) {
-    const el = document.createElement("div"); el.className = "stepline";
-    const names = (m.files || []).map((f) => f.name);
-    el.textContent = m.check ? "🔎 Max checked his change and is fixing: " + (m.notes || []).join(" · ")
-      : (names.length ? "📂 Max opened " + names.join(", ") + (m.notes?.length ? " · " : "") : "🔎 Max ") + ((m.notes || []).join(" · ") || (names.length ? "" : "looked around"));
-    return el;
-  }
-  if (m.role === "user") {
-    const el = document.createElement("div"); el.className = "turn-user";
-    if (m.files?.length) el.insertAdjacentHTML("beforeend", `<div class="files">${m.files.map((f) => chipHTML(f, false)).join("")}</div>`);
-    if (m.content) { const b = document.createElement("div"); b.className = "bubble"; b.textContent = m.content; el.appendChild(b); }
-    return el;
-  }
-  const el = document.createElement("div"); el.className = "turn-max";
-  el.innerHTML = `<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"></div><div class="actions"><button class="iconbtn" type="button" data-act="copy" aria-label="Copy" title="Copy">${svg("copy")}</button>${i === current.messages.length - 1 ? `<button class="iconbtn" type="button" data-act="redo" aria-label="Try again" title="Try again">${svg("redo")}</button>` : ""}${m.model ? `<span class="brain" title="The AI model that wrote this answer">${esc(m.model)}</span>` : ""}${m.checked ? '<span class="brain ok" title="Max applied his change to a copy and found no errors">✓ checked</span>' : ""}</div></div>`;
-  el.querySelector(".text").innerHTML = md(m.content);
-  el.dataset.index = i;
-  if (m.problems?.length) el.querySelector(".text").insertAdjacentHTML("beforeend", `<p class="warnbox">Max couldn't fix these problems, so check before publishing: ${esc(m.problems.join("; "))}</p>`);
-  const nFiles = el.querySelectorAll(".codeblock[data-path]").length;
-  if (nFiles > 1) el.querySelector(".text").insertAdjacentHTML("beforeend", `<div class="puball"><button class="btn" type="button" data-cb="publishall">Publish all ${nFiles} files</button><span class="pubnote"></span></div>`);
-  return el;
-}
-function renderThread() {
-  thread.innerHTML = "";
-  const msgs = current?.messages || [];
-  welcome.hidden = msgs.length > 0;
-  msgs.forEach((m, i) => thread.appendChild(renderMessage(m, i)));
-  $("title").textContent = current?.messages.length ? current.title : "";
-  scroller.scrollTop = scroller.scrollHeight;
-}
-function renderHistory() {
-  const h = $("history");
-  if (!chats.length) { h.innerHTML = '<div class="hempty">Your lessons will show up here.</div>'; return; }
-  h.innerHTML = chats.map((c) => `<div class="hitem${current && c.id === current.id ? " active" : ""}" data-id="${c.id}"><button class="open" type="button">${esc(c.title)}</button><button class="iconbtn del" type="button" aria-label="Delete ${esc(c.title)}">${svg("trash")}</button></div>`).join("");
-}
-$("history").addEventListener("click", (e) => {
-  const item = e.target.closest(".hitem"); if (!item || busy) return;
-  const id = item.dataset.id;
-  if (e.target.closest(".del")) {
-    chats = chats.filter((c) => c.id !== id); saveChats(); cloudDelete(id);
-    if (current?.id === id) newChat(); else renderHistory();
-    return;
-  }
-  current = chats.find((c) => c.id === id); renderThread(); renderHistory(); closeSideOnPhone();
-});
-let lastRun = "";
-function runCode(lang, code) {
-  if (lang !== "html") {
-    // plain JavaScript: show what it prints
-    code = `<!doctype html><meta charset="utf-8"><body style="font:14px/1.5 ui-monospace,Menlo,monospace;margin:14px;white-space:pre-wrap"><script>
-const out=(t,c)=>{const d=document.createElement("div");d.textContent=t;if(c)d.style.color=c;document.body.appendChild(d)};
-const show=(a)=>a.map(x=>typeof x==="object"?JSON.stringify(x,null,1):String(x)).join(" ");
-console.log=console.info=(...a)=>out(show(a));console.warn=(...a)=>out(show(a),"#b58900");console.error=(...a)=>out(show(a),"#c2413b");
-window.onerror=(m)=>out("Error: "+m,"#c2413b");
-<\/script><script>${code.replace(/<\/script/gi, "<\\/script")}\n<\/script><script>if(!document.body.querySelector("div"))out("(The code ran and printed nothing.)","#888")<\/script>`;
-  }
-  lastRun = code; $("runFrame").srcdoc = code; $("runner").hidden = false;
-}
-$("runClose").onclick = () => { $("runner").hidden = true; $("runFrame").srcdoc = ""; };
-$("rerun").onclick = () => { $("runFrame").srcdoc = ""; setTimeout(() => ($("runFrame").srcdoc = lastRun), 30); };
-thread.addEventListener("click", async (e) => {
-  const cb = e.target.closest("[data-cb]");
-  if (cb?.dataset.cb === "publishall") return publishAll(cb, cb.closest(".turn-max"));
-  if (cb) {
-    const block = cb.closest(".codeblock"), code = block.querySelector("code").textContent;
-    if (cb.dataset.cb === "run") return block.dataset.kind === "edit" ? runEdit(block) : runCode(block.dataset.lang, code);
-    if (cb.dataset.cb === "publish") return publish(cb, block);
-    try { await navigator.clipboard.writeText(code); cb.textContent = "Copied"; setTimeout(() => (cb.textContent = "Copy"), 1500); }
-    catch { const r = document.createRange(); r.selectNodeContents(block.querySelector("code")); getSelection().removeAllRanges(); getSelection().addRange(r); }
-    return;
-  }
-  const b = e.target.closest("[data-act]"); if (!b) return;
-  const i = +b.closest(".turn-max").dataset.index;
-  if (b.dataset.act === "copy") {
-    const t = current.messages[i].content;
-    try { await navigator.clipboard.writeText(t); b.innerHTML = svg("copy"); b.title = "Copied"; setTimeout(() => (b.title = "Copy"), 1500); }
-    catch { const r = document.createRange(); r.selectNodeContents(b.closest(".body").querySelector(".text")); getSelection().removeAllRanges(); getSelection().addRange(r); }
-  } else if (b.dataset.act === "redo" && !busy) {
-    current.messages.pop(); renderThread(); respond();
-  }
-});
-
-/* ---------- chat flow ---------- */
-function newChat() {
-  current = { id: Date.now().toString(36), title: "New lesson", messages: [], created: Date.now() };
-  renderThread(); renderHistory(); setStatus(""); closeSideOnPhone(); input.focus();
-}
-function setStatus(t) { statusEl.textContent = t || ""; statusEl.hidden = !t; }
-function updateSend() {
-  const reading = pending.some((f) => !f.error && !f.text);
-  sendBtn.disabled = !busy && (reading || (!input.value.trim() && !pending.some((f) => f.text)));
-  sendBtn.innerHTML = svg(busy ? "stop" : "up");
-  sendBtn.setAttribute("aria-label", busy ? "Stop" : "Send");
-}
-function modelMessages() {
-  const msgs = current.messages.slice(-24);
-  let task = 0; msgs.forEach((m, i) => { if (m.role === "user" && !m.auto) task = i; }); // where the current request starts
-  return msgs.map((m, i) => {
-    if (m.role !== "user" || !m.files?.length) return { role: m.role, content: m.content };
-    // Website files are read fresh for every request, so copies from older requests are left out.
-    const docs = m.files.filter((f) => f.text && (f.kind !== "site" || i >= task)).map((f) => `<file name="${f.name}">\n${f.text}\n</file>`).join("\n\n");
-    return { role: "user", content: `${docs}\n\n${m.content || "Please help me understand this file."}` };
-  });
-}
-async function send(text, opts) {
-  text = (text || "").trim();
-  const files = [...(opts?.files || []), ...pending.filter((f) => f.text).map(({ id, name, size, kind, text, thumb, status, cut }) => ({ id, name, size, kind, text, thumb, status, cut }))];
-  if (busy || (!text && !files.length)) return;
-  if (pending.some((f) => !f.error && !f.text)) { setStatus("Wait a moment, Max is still reading your file."); return; }
-  chats = [current, ...chats.filter((c) => c !== current)];
-  if (current.messages.length === 0) current.title = (text || files[0]?.name || "New lesson").slice(0, 48);
-  current.messages.push({ role: "user", content: text, files });
-  pending = []; renderPending();
-  input.value = ""; autosize();
-  renderThread(); renderHistory(); saveChats(current);
-  return respond(opts);
-}
-async function respond(opts = {}) {
-  const box = document.createElement("div"); box.className = "turn-max";
-  box.innerHTML = '<div class="avatar" aria-hidden="true">M</div><div class="body"><div class="text"><span class="thinking">Max is thinking</span></div></div>';
-  thread.appendChild(box); scroller.scrollTop = scroller.scrollHeight;
-  const out = box.querySelector(".text");
-  busy = true; ctl = new AbortController(); updateSend(); setStatus("");
-  let answer = "", usedModel = "";
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), mode: siteMode() ? "site" : prefs.mode === "code" ? "code" : "chat", tier: TIERS[prefs.mode], brains: brainList(), voice: !!opts.voice, site: siteMode() ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
+<script>
+(function () {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function show(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
     });
-    if (!res.ok || !res.body) {
-      let msg = "Max's cloud brain didn't answer. Try again.";
-      try { msg = (await res.json()).error || msg; } catch {}
-      throw new Error(msg);
-    }
-    usedModel = res.headers.get("X-Max-Model") || "";
-    const reader = res.body.getReader(), dec = new TextDecoder();
-    let raw = "", serverError = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      raw += dec.decode(value, { stream: true });
-      // The server tucks notes (model name, errors, keep-alive pings) into the text between \u0001 marks.
-      for (const m of raw.matchAll(/\u0001([^\u0001]*)\u0001/g)) { try { const n = JSON.parse(m[1]); if (n.model) usedModel = n.model; if (n.error) serverError = n.error; if (n.cut) serverError = "Max ran out of room and stopped early. Ask him to continue."; } catch {} }
-      const text = raw.replace(/\u0001[^\u0001]*\u0001/g, "").replace(/\u0001[^\u0001]*$/, "");
-      if (text === answer) continue;
-      answer = text;
-      const near = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
-      out.innerHTML = md(answer);
-      if (near) scroller.scrollTop = scroller.scrollHeight;
-      opts.onText?.(answer);
-    }
-    if (serverError) { if (!answer.trim()) throw new Error(serverError); setStatus(serverError); }
-    if (!answer.trim() && !ctl.signal.aborted) throw new Error("Max didn't say anything. Try again.");
-  } catch (e) {
-    const msg = String(e?.message || e);
-    if (e.name !== "AbortError") { const shown = /failed to fetch|load failed|network/i.test(msg) ? (answer.trim() ? "Max got cut off before he finished. Ask him to continue." : "Max couldn't reach his server. Check your internet and try again.") : msg; setStatus(shown); opts.onError?.(shown); }
+    if (focus) tab.focus();
   }
-  const stopped = !!ctl?.signal.aborted;
-  const agent = !stopped && siteMode();
-  const act = agent ? parseActions(answer) : null;
-  if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel, ...(act ? { step: true } : {}) });
-  busy = false; ctl = null;
-  renderThread(); saveChats(current); updateSend();
-  if (act) return agentStep(act, opts);
-  if (agent && answer.trim()) return checkWork(opts);
-  return answer.trim();
-}
-
-/* ---------- edit a website (GitHub) ---------- */
-const SITE_LIMIT = 30000; // characters of files Max can read at once
-let site = store.get("max.site", null); // { repo, token, branch, tree, picked }
-const saveSite = () => { try { site ? localStorage.setItem("max.site", JSON.stringify(site)) : localStorage.removeItem("max.site"); } catch {} };
-const TEXTY = /\.(html?|css|m?js|jsx|ts|tsx|json|md|txt|svg|xml|ya?ml|toml|py|php|rb|go|java|c|cpp|h|vue|svelte|astro|webmanifest)$/i;
-let pendingToken = ""; // set while picking a repository right after Connect GitHub
-async function gh(path, init = {}) {
-  const r = await fetch("https://api.github.com" + path, { ...init, headers: { Authorization: "Bearer " + (pendingToken || site.token), Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(init.headers || {}) } });
-  if (!r.ok) {
-    const why = r.status === 401 ? "GitHub didn't accept the token. Make a new one and connect again."
-      : r.status === 403 ? "The token isn't allowed to do that. It needs Contents: Read and write for this repository."
-      : r.status === 404 ? "GitHub can't find that. Check the repository name and that the token covers it."
-      : r.status === 409 || r.status === 422 ? "The file changed on GitHub in the meantime. Ask Max again." : "GitHub answered " + r.status + ".";
-    const e = new Error(why); e.status = r.status; throw e;
-  }
-  return r;
-}
-const ghPath = (p) => p.split("/").map(encodeURIComponent).join("/");
-async function ghRead(path) { // -> { text, sha } or null when the file doesn't exist
-  try {
-    const j = await (await gh(`/repos/${site.repo}/contents/${ghPath(path)}?ref=${encodeURIComponent(site.branch)}`)).json();
-    if (Array.isArray(j) || j.type !== "file") throw new Error(path + " is a folder, not a file.");
-    const bin = atob((j.content || "").replace(/\n/g, ""));
-    return { sha: j.sha, text: new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))) };
-  } catch (e) { if (e.status === 404) return null; throw e; }
-}
-async function siteLoadTree() {
-  const t = await (await gh(`/repos/${site.repo}/git/trees/${encodeURIComponent(site.branch)}?recursive=1`)).json();
-  treeInfo = (t.tree || []).filter((x) => x.type === "blob" && TEXTY.test(x.path) && !/(^|\/)(node_modules|\.git|dist|build|vendor)\//.test(x.path) && !/package-lock\.json$|\.min\./.test(x.path)).map((x) => ({ path: x.path, sha: x.sha, size: x.size || 0 }));
-  site.tree = treeInfo.map((x) => x.path);
-  site.picked = (site.picked || []).filter((p) => site.tree.includes(p));
-  saveSite();
-}
-async function siteFilesForSend() {
-  const out = []; let total = 0;
-  for (const path of site.picked) {
-    const f = await ghRead(path);
-    if (!f) continue;
-    total += f.text.length;
-    if (total > SITE_LIMIT) throw new Error(`These files are too big for Max to edit safely (${Math.round(total / 1000)}k characters, limit ${SITE_LIMIT / 1000}k). Pick fewer or smaller files.`);
-    out.push({ id: Math.random().toString(36).slice(2), name: path, size: f.text.length, kind: "site", text: f.text, status: "from " + site.repo });
-  }
-  return out;
-}
-const siteMode = () => prefs.mode === "code" && !!site && !site.paused; // Code edits the connected website unless paused
-function renderSite() {
-  $("siteBtnText").textContent = site ? site.repo : "Connect a website";
-  $("siteBar").hidden = !(site && prefs.mode === "code");
-  if (!site) return;
-  $("siteLabel").textContent = (site.paused ? "Not editing " : "Editing ") + site.repo + (site.paused ? "" : ":");
-  $("siteFiles").hidden = $("siteAdd").hidden = $("siteHost").hidden = !!site.paused; $("siteToggle").textContent = site.paused ? "Edit it again" : "Pause";
-  if (site.pagesUrl) hostNote(`Online at <a href="${esc(site.pagesUrl)}" target="_blank" rel="noopener">${esc(site.pagesUrl)}</a>`); else $("siteHostNote").hidden = true;
-  $("siteFiles").innerHTML = (site.picked || []).map((p) => `<span class="chip" data-path="${esc(p)}"><b title="${esc(p)}">${esc(p)}</b><button class="iconbtn x" type="button" aria-label="Remove ${esc(p)}">${svg("x")}</button></span>`).join("") || "Max opens the files he needs";
-}
-function openSiteDlg() {
-  $("siteRepo").value = site?.repo || ""; $("siteToken").value = site?.token || "";
-  $("vercelToken").value = hosts.vercel?.token || ""; $("netlifyToken").value = hosts.netlify?.token || "";
-  $("siteOff").hidden = !site;
-  $("ghOauth").hidden = false; $("tokenWay").open = false; ghReset();
-  $("ghConnect").textContent = site ? `Connected to ${site.repo}. Connect another` : "Connect GitHub";
-  $("siteErr").hidden = true; $("siteDlg").hidden = false; closeSideOnPhone();
-}
-$("siteBtn").onclick = openSiteDlg;
-$("siteCancel").onclick = () => { $("siteDlg").hidden = true; ghReset(); };
-
-/* Connect GitHub without a token: GitHub shows a code, you approve, Max gets access. */
-let ghOauth = false, ghRun = 0, ghRepoAll = [];
-let ghClient = store.get("max.ghClient", ""); // the app's public Client ID, when Max's server doesn't have one built in
-let maxRepo = "", ghShared = false; // the repository Max himself lives in; whether the setup is already saved there
-fetch("/api/github").then((r) => r.json()).then((j) => { ghOauth = !!j.enabled; maxRepo = j.repo || ""; }).catch(() => {});
-fetch("/max.config.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((c) => {
-  if (c && /^[A-Za-z0-9.]{16,40}$/.test(c.githubClientId || "")) { ghClient = c.githubClientId; ghShared = true; }
-}).catch(() => {});
-function ghReset() { ghRun++; pendingToken = ""; $("ghConnect").hidden = false; $("ghDevice").hidden = true; $("ghRepos").hidden = true; $("ghSetup").hidden = true; $("ghShare").hidden = true; }
-const ghApi = (body) => fetch("/api/github", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, ...(ghOauth ? {} : { client_id: ghClient }) }) }).then((r) => r.json());
-function ghShowSetup() { $("ghConnect").hidden = true; $("ghSetup").hidden = false; $("ghOrigin").textContent = location.origin; $("ghClientId").value = ghClient; }
-$("ghSetupGo").onclick = () => {
-  const id = $("ghClientId").value.trim();
-  if (!/^[A-Za-z0-9.]{16,40}$/.test(id)) { $("siteErr").textContent = "Paste the Client ID from GitHub. It starts with Ov23 and has letters and numbers only."; $("siteErr").hidden = false; return; }
-  ghClient = id; store.set("max.ghClient", id); $("ghSetup").hidden = true; $("ghConnect").hidden = false; $("ghConnect").click();
-};
-$("ghConnect").onclick = async () => {
-  if (!ghOauth && !ghClient) { $("siteErr").hidden = true; return ghShowSetup(); }
-  const run = ++ghRun, err = (m) => { $("siteErr").textContent = m; $("siteErr").hidden = false; };
-  $("siteErr").hidden = true; $("ghConnect").disabled = true;
-  let d; try { d = await ghApi({ action: "start" }); } catch { d = { error: "Couldn't reach Max's server. Check your internet." }; }
-  $("ghConnect").disabled = false;
-  if (run !== ghRun) return;
-  if (!d.user_code) { if (!ghOauth) ghShowSetup(); return err(d.error || "GitHub sign-in didn't start. Try again."); }
-  $("ghConnect").hidden = true; $("ghDevice").hidden = false; $("ghCode").textContent = d.user_code; $("ghOpen").href = d.verification_uri || "https://github.com/login/device";
-  $("ghOpen").onclick = () => { navigator.clipboard?.writeText(d.user_code).catch(() => {}); };
-  $("ghWait").textContent = "Waiting for you to approve on GitHub…";
-  let wait = (d.interval || 5) + 1; const until = Date.now() + (d.expires_in || 900) * 1000;
-  while (run === ghRun && Date.now() < until) {
-    await new Promise((r) => setTimeout(r, wait * 1000));
-    if (run !== ghRun) return;
-    let p; try { p = await ghApi({ action: "poll", device_code: d.device_code }); } catch { continue; }
-    if (p.access_token) { pendingToken = p.access_token; return ghPickRepo(run); }
-    if (p.error === "slow_down") wait += 5;
-    else if (p.error && p.error !== "authorization_pending") { ghReset(); return err(p.error === "access_denied" ? "You cancelled on GitHub. Tap Connect GitHub to try again." : "The code ran out. Tap Connect GitHub to get a new one."); }
-  }
-  if (run === ghRun) { ghReset(); err("The code ran out. Tap Connect GitHub to get a new one."); }
-};
-async function ghPickRepo(run) {
-  $("ghDevice").hidden = true; $("ghRepos").hidden = false; $("ghRepoFilter").value = "";
-  $("ghRepoList").innerHTML = '<div class="none">Loading your repositories…</div>';
-  try {
-    ghRepoAll = [];
-    for (let page = 1; page <= 3; page++) {
-      const list = await (await gh(`/user/repos?per_page=100&sort=pushed&page=${page}`)).json();
-      ghRepoAll.push(...list.filter((r) => r.permissions?.push));
-      if (list.length < 100) break;
-    }
-    if (run !== ghRun) return;
-    ghRenderRepos();
-    // The owner of Max can save the one-time setup into Max's own repository for everybody.
-    const mine = ghRepoAll.find((r) => r.full_name.toLowerCase() === maxRepo.toLowerCase());
-    if (!ghOauth && !ghShared && ghClient && mine) {
-      $("ghShare").hidden = false; $("ghShareGo").disabled = false; $("ghShareGo").textContent = "Save for everyone"; $("ghShareNote").textContent = `Adds a small settings file to ${mine.full_name}. The Client ID in it is public, not a secret.`;
-      $("ghShareGo").onclick = async () => {
-        $("ghShareGo").disabled = true; $("ghShareNote").textContent = "Saving…";
-        try {
-          const url = `/repos/${mine.full_name}/contents/max.config.json`;
-          const old = await gh(url).then((r) => r.json()).catch((e) => { if (e.status === 404) return null; throw e; });
-          await gh(url, { method: "PUT", body: JSON.stringify({ message: "Save the GitHub sign-in setup for everyone", content: btoa(JSON.stringify({ githubClientId: ghClient }, null, 2) + "\n"), branch: mine.default_branch, ...(old?.sha ? { sha: old.sha } : {}) }) });
-          ghShared = true; $("ghShareGo").textContent = "Saved ✓"; $("ghShareNote").textContent = "Saved. In about a minute, Connect GitHub works for everyone with no setup. Now pick the website for Max to work on.";
-        } catch (e) { $("ghShareGo").disabled = false; $("ghShareNote").textContent = netErr(e); }
-      };
-    }
-  } catch (e) { $("ghRepoList").innerHTML = `<div class="none">${esc(netErr(e))}</div>`; }
-}
-function ghRenderRepos() {
-  const q = $("ghRepoFilter").value.trim().toLowerCase();
-  $("ghRepoList").innerHTML = ghRepoAll.filter((r) => r.full_name.toLowerCase().includes(q)).slice(0, 60)
-    .map((r) => `<button type="button" data-repo="${esc(r.full_name)}" data-branch="${esc(r.default_branch || "main")}">${esc(r.full_name)}<span>${r.private ? "private" : "public"}${r.homepage ? " · " + esc(r.homepage) : ""}</span></button>`).join("") || '<div class="none">No repositories you can change match that.</div>';
-}
-$("ghRepoFilter").oninput = ghRenderRepos;
-$("ghRepoList").addEventListener("click", async (e) => {
-  const b = e.target.closest("button[data-repo]"); if (!b) return;
-  const before = site;
-  site = { repo: b.dataset.repo, token: pendingToken, branch: b.dataset.branch, picked: [], oauth: true };
-  try { await siteLoadTree(); pendingToken = ""; ghRun++; $("siteDlg").hidden = true; setMode("code"); renderSite(); }
-  catch (e2) { site = before; $("siteErr").textContent = netErr(e2); $("siteErr").hidden = false; }
-});
-$("siteOff").onclick = () => { site = null; saveSite(); hosts = {}; saveHosts(); renderSite(); $("siteDlg").hidden = true; };
-$("siteForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const repo = $("siteRepo").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, ""), token = $("siteToken").value.trim();
-  const err = (m) => { $("siteErr").textContent = m; $("siteErr").hidden = false; };
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return err("Write the repository as owner/name.");
-  if (!token) return err("Paste a GitHub access token.");
-  pendingToken = "";
-  const before = site; site = { repo, token, branch: "main", picked: before?.repo === repo ? before.picked : [] };
-  $("siteGo").disabled = true; $("siteErr").hidden = true;
-  try {
-    const info = await (await gh(`/repos/${repo}`)).json();
-    if (info.permissions && !info.permissions.push) throw new Error("This token can read the repository but not change it. Set Contents to Read and write.");
-    site.branch = info.default_branch || "main";
-    await siteLoadTree();
-    const vt = $("vercelToken").value.trim(), nt = $("netlifyToken").value.trim(), next = {};
-    if (vt) { const r = await fetch("https://api.vercel.com/v2/user", { headers: { Authorization: "Bearer " + vt } }).catch(() => null);
-      if (!r) throw new Error("Couldn't reach Vercel to check the token. Try again, or leave the Vercel box empty.");
-      if (!r.ok) throw new Error("Vercel didn't accept that token. Make a new one, or leave the Vercel box empty.");
-      next.vercel = { token: vt }; }
-    if (nt) { const r = await fetch("https://api.netlify.com/api/v1/user", { headers: { Authorization: "Bearer " + nt } }).catch(() => null);
-      if (!r) throw new Error("Couldn't reach Netlify to check the token. Try again, or leave the Netlify box empty.");
-      if (!r.ok) throw new Error("Netlify didn't accept that token. Make a new one, or leave the Netlify box empty.");
-      next.netlify = { token: nt }; }
-    hosts = next; saveHosts();
-    $("siteDlg").hidden = true; setMode("code"); renderSite();
-  } catch (e2) { site = before; err(e2.message === "Failed to fetch" || e2.message === "Load failed" ? "Couldn't reach GitHub. Check your internet." : e2.message); }
-  $("siteGo").disabled = false;
-});
-$("siteFiles").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c || !e.target.closest(".x")) return; site.picked = site.picked.filter((p) => p !== c.dataset.path); saveSite(); renderSite(); });
-function renderPick() {
-  const q = $("pickFilter").value.trim().toLowerCase();
-  const list = (site.tree || []).filter((p) => p.toLowerCase().includes(q)).slice(0, 200);
-  $("pickList").innerHTML = list.map((p) => `<label><input type="checkbox" value="${esc(p)}"${site.picked.includes(p) ? " checked" : ""}>${esc(p)}</label>`).join("") || '<div class="none">No matching text files.</div>';
-}
-$("siteAdd").onclick = async () => { $("pickFilter").value = ""; $("pickDlg").hidden = false; renderPick(); try { await siteLoadTree(); renderPick(); } catch (e) { setStatus(e.message); } };
-$("pickFilter").oninput = renderPick;
-$("pickList").addEventListener("change", (e) => { const v = e.target.value; site.picked = e.target.checked ? [...new Set([...site.picked, v])] : site.picked.filter((p) => p !== v); saveSite(); });
-$("pickDone").onclick = () => { $("pickDlg").hidden = true; renderSite(); };
-/* Vercel and Netlify: watch the rebuild that a publish starts (read-only). */
-let hosts = store.get("max.hosts", {}); // { vercel: { token, teamId }, netlify: { token, siteId } }
-const saveHosts = () => { try { localStorage.setItem("max.hosts", JSON.stringify(hosts)); } catch {} };
-async function hostJSON(url, token) {
-  const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-  if (!r.ok) { const e = new Error("answered " + r.status); e.status = r.status; throw e; }
-  return r.json();
-}
-async function vercelFind(sha) {
-  const v = hosts.vercel, api = "https://api.vercel.com";
-  let scopes = v.teamId !== undefined ? [v.teamId] : null;
-  if (!scopes) { const t = await hostJSON(api + "/v2/teams?limit=50", v.token).catch(() => ({ teams: [] })); scopes = ["", ...(t.teams || []).map((x) => x.id)]; }
-  for (const team of scopes) {
-    const q = team ? "&teamId=" + encodeURIComponent(team) : "";
-    const d = await hostJSON(`${api}/v6/deployments?limit=20${q}`, v.token).catch(() => null);
-    const hit = d?.deployments?.find((x) => x.meta?.githubCommitSha === sha);
-    if (!hit) continue;
-    if (v.teamId !== team) { v.teamId = team; saveHosts(); }
-    const state = hit.state || hit.readyState;
-    const out = { host: "Vercel", state: state === "READY" ? "ok" : state === "ERROR" || state === "CANCELED" ? "bad" : "wait", url: hit.url ? "https://" + hit.url : "", page: hit.inspectorUrl || "" };
-    if (out.state === "bad") {
-      try {
-        const ev = await hostJSON(`${api}/v3/deployments/${hit.uid}/events?builds=1&limit=-1${q}`, v.token);
-        out.error = (Array.isArray(ev) ? ev : []).map((x) => x.text || x.payload?.text || "").filter(Boolean).slice(-25).join("\n").slice(-2500);
-      } catch {}
-      out.error ||= hit.errorMessage || "The build failed.";
-    }
-    return out;
-  }
-  return null;
-}
-async function netlifyFind(sha) {
-  const n = hosts.netlify, api = "https://api.netlify.com/api/v1";
-  if (!n.siteId || n.repo !== site.repo) {
-    const sites = await hostJSON(api + "/sites?per_page=100", n.token);
-    const hit = sites.find((x) => (x.build_settings?.repo_path || x.build_settings?.repo_url || "").toLowerCase().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "") === site.repo.toLowerCase());
-    if (!hit) return null;
-    n.siteId = hit.id; n.repo = site.repo; saveHosts();
-  }
-  const deploys = await hostJSON(`${api}/sites/${n.siteId}/deploys?per_page=10`, n.token);
-  const d = deploys.find((x) => x.commit_ref === sha);
-  if (!d) return null;
-  return { host: "Netlify", state: d.state === "ready" ? "ok" : d.state === "error" ? "bad" : "wait", url: d.context === "production" ? d.ssl_url || d.deploy_ssl_url : d.deploy_ssl_url, page: d.admin_url ? `${d.admin_url}/deploys/${d.id}` : "", error: d.error_message || "The build failed." };
-}
-// Hosts report each rebuild back to GitHub, so Max can follow it with GitHub access alone.
-async function githubDeployFind(sha) {
-  const base = `/repos/${site.repo}`, quiet = (e) => { if (e.status === 403 || e.status === 404) e.quiet = true; throw e; };
-  const hostOf = (t) => (/vercel/i.test(t) ? "Vercel" : /netlify/i.test(t) ? "Netlify" : /cloudflare/i.test(t) ? "Cloudflare" : /render/i.test(t) ? "Render" : /pages/i.test(t) ? "GitHub Pages" : "Your host");
-  const deps = await (await gh(`${base}/deployments?sha=${sha}&per_page=5`).catch(quiet)).json();
-  const dep = deps.find((d) => !/preview/i.test(d.environment || "")) || deps[0];
-  if (dep) {
-    const st = (await (await gh(`${base}/deployments/${dep.id}/statuses?per_page=1`).catch(quiet)).json())[0];
-    const state = !st ? "wait" : st.state === "success" || st.state === "inactive" ? "ok" : st.state === "failure" || st.state === "error" ? "bad" : "wait";
-    return { host: hostOf((dep.creator?.login || "") + " " + (dep.environment || "")), state, url: st?.environment_url || "", page: st?.log_url || st?.target_url || "", error: st?.description || "The build failed. Open Details to read the log." };
-  }
-  const cs = await (await gh(`${base}/commits/${sha}/status`).catch(quiet)).json();
-  const s = (cs.statuses || []).find((x) => /vercel|netlify|deploy|pages|render|cloudflare/i.test(x.context));
-  if (!s) return null;
-  return { host: hostOf(s.context), state: s.state === "success" ? "ok" : s.state === "failure" || s.state === "error" ? "bad" : "wait", url: "", page: s.target_url || "", error: s.description || "The build failed. Open Details to read the log." };
-}
-function watchDeploy(sha, box) {
-  let jobs = [hosts.vercel?.token && ["Vercel", vercelFind], hosts.netlify?.token && ["Netlify", netlifyFind]].filter(Boolean);
-  if (!jobs.length) jobs = [["Your host", githubDeployFind]];
-  if (!sha) return;
-  for (const [name, find] of jobs) {
-    const el = document.createElement("div"); el.className = "deploy wait"; box.appendChild(el);
-    const show = (cls, html) => { el.className = "deploy " + cls; el.innerHTML = '<span class="dot"></span>' + html; };
-    show("wait", `${name}: waiting for the rebuild to start…`);
-    const started = Date.now(); let found = false;
-    const tick = async () => {
-      if (!el.isConnected) return;
-      let d = null, failed = "";
-      try { d = await find(sha); } catch (e) { if (e.quiet) return el.remove(); failed = e.status === 401 || e.status === 403 ? `${name} didn't accept the token. Connect again with a new one.` : e.message === "Failed to fetch" || e.message === "Load failed" ? `Couldn't reach ${name}.` : `${name} ${e.message}.`; }
-      if (failed && !/reach/.test(failed)) return show("bad", esc(failed));
-      const link = (u, t) => (u ? ` <a href="${esc(u)}" target="_blank" rel="noopener">${t}</a>` : "");
-      if (d) found = true;
-      const who = d?.host || name;
-      if (d?.state === "ok") return show("ok", `${who}: the change is live.${link(d.url, "Open the site")}`);
-      if (d?.state === "bad") {
-        show("bad", `${who}: the rebuild failed, so the live site did not change.${link(d.page, "Details")} <button type="button" data-fix="1">Ask Max to fix it</button><pre></pre>`);
-        el.querySelector("pre").textContent = d.error;
-        el.querySelector("button").onclick = () => { input.value = `The ${who} build failed after your change. Find the cause and fix it. This is the error:\n${d.error}`; autosize(); updateSend(); submit(input.value); };
-        return;
-      }
-      const secs = (Date.now() - started) / 1000;
-      if (!found && secs > 90) return show("", find === githubDeployFind ? "No rebuild showed up on GitHub for this change. If the site isn't online yet, tap Put it online above." : `${name}: no rebuild found for this change. The site may be on another account or host.`);
-      if (secs > 420) return show("", `${name}: still building after 7 minutes. Check it on ${name}.${link(d?.page, "Open")}`);
-      show("wait", d ? `${who}: building…${link(d.page, "Watch")}` : `${name}: waiting for the rebuild to start…`);
-      setTimeout(tick, 6000);
-    };
-    setTimeout(tick, 4000);
-  }
-}
-const hostName = () => [hosts.vercel?.token && "Vercel", hosts.netlify?.token && "Netlify"].filter(Boolean).join(" and ");
-
-/* ----- Max's tools: open files, search, edit, check his own work ----- */
-const blobCache = new Map(); // git sha -> file text, for searching
-let treeInfo = [];           // [{ path, sha, size }]
-const b64text = (b) => new TextDecoder().decode(Uint8Array.from(atob((b || "").replace(/\n/g, "")), (c) => c.charCodeAt(0)));
-const taskStart = () => { let t = 0; current.messages.forEach((m, i) => { if (m.role === "user" && !m.auto) t = i; }); return t; };
-const newFile = (name, text) => ({ id: Math.random().toString(36).slice(2), name, size: text.length, kind: "site", text, status: "from " + site.repo });
-
-// Max asks with lines like "READ: index.html, js/app.js:120-300" and "SEARCH: addToCart".
-function parseActions(answer) {
-  if (/```(file|edit):/i.test(answer)) return null;
-  const reads = [], searches = [];
-  for (const m of answer.matchAll(/^\s*(?:[-*]\s*)?READ:\s*(.+)$/gim)) for (let x of m[1].split(/[,\s]+/)) {
-    x = x.replace(/[`'"<>]/g, "").replace(/^\/+/, "").trim(); if (!x) continue;
-    const r = x.match(/^(.*?)(?::|#L?)(\d+)\s*-\s*L?(\d+)$/);
-    const item = r ? { path: r[1], from: Math.max(1, +r[2]), to: +r[3] } : { path: x };
-    if (!reads.some((y) => y.path === item.path && y.from === item.from)) reads.push(item);
-  }
-  for (const m of answer.matchAll(/^\s*(?:[-*]\s*)?SEARCH:\s*(.+)$/gim)) { const q = m[1].replace(/^[`'"]+|[`'"]+$/g, "").trim(); if (q.length > 1) searches.push(q); }
-  return reads.length || searches.length ? { reads: reads.slice(0, 5), searches: searches.slice(0, 3) } : null;
-}
-async function repoSearch(q) {
-  if (!treeInfo.length) await siteLoadTree();
-  const files = treeInfo.filter((f) => f.size <= 300000).slice(0, 250), need = files.filter((f) => !blobCache.has(f.sha));
-  let i = 0;
-  await Promise.all(Array.from({ length: 6 }, async () => {
-    while (i < need.length) { const f = need[i++]; try { blobCache.set(f.sha, b64text((await (await gh(`/repos/${site.repo}/git/blobs/${f.sha}`)).json()).content)); } catch { blobCache.set(f.sha, ""); } }
-  }));
-  const needle = q.toLowerCase(), hits = [];
-  for (const f of files) (blobCache.get(f.sha) || "").split("\n").forEach((ln, n) => { if (hits.length < 40 && ln.toLowerCase().includes(needle)) hits.push(`${f.path}:${n + 1}: ${ln.trim().slice(0, 160)}`); });
-  return hits;
-}
-async function agentStep(act, opts) {
-  const steps = (opts.step || 0) + 1, t = taskStart();
-  const open = current.messages.slice(t).flatMap((m) => m.files || []).filter((f) => f.kind === "site");
-  let used = open.reduce((n, f) => n + f.text.length, 0);
-  const seen = new Set(open.map((f) => f.name));
-  busy = true; updateSend();
-  const files = [], notes = [], tell = [];
-  for (const { path, from, to } of act.reads) {
-    try {
-      const f = await ghRead(path);
-      if (!f) { notes.push(`${path}: no such file`); tell.push(`${path} does not exist. Use an exact path from the file list.`); continue; }
-      const lines = f.text.split("\n"), N = lines.length;
-      let name = path, text = f.text;
-      if (from) { const a = Math.min(from, N), b = Math.min(Math.max(to, a), a + 399, N); name = `${path} (lines ${a}-${b} of ${N})`; text = lines.slice(a - 1, b).join("\n"); }
-      else if (used + text.length > SITE_LIMIT) {
-        const b = Math.min(40, N); name = `${path} (lines 1-${b} of ${N})`; text = lines.slice(0, b).join("\n");
-        tell.push(`${path} is too big to open whole (${N} lines), so only lines 1-${b} are open. Find the part you need with SEARCH: some text, then open it with READ: ${path}:START-END (up to 400 lines). Change this file with an edit block, never a file block.`);
-      }
-      if (seen.has(name)) { notes.push(`${name}: already open`); continue; }
-      if (used + text.length > SITE_LIMIT) { notes.push(`${name}: no room left`); tell.push(`There is no room to open ${name}. Work with what is open.`); continue; }
-      used += text.length; seen.add(name); files.push(newFile(name, text));
-    } catch (e) { notes.push(`${path}: ${e.message}`); tell.push(`${path} could not be opened.`); }
-  }
-  for (const q of act.searches) {
-    try { const hits = await repoSearch(q); notes.push(`searched "${q}": ${hits.length}${hits.length === 40 ? "+" : ""} matches`); tell.push(`Search results for "${q}" (file:line: text):\n` + (hits.join("\n") || "no matches")); }
-    catch (e) { notes.push(`search "${q}" failed`); tell.push(`The search for "${q}" failed.`); }
-  }
-  const last = steps >= 8;
-  current.messages.push({ role: "user", auto: true, files, notes,
-    content: (files.length ? "The files you asked for are open above.\n" : "") + tell.join("\n") +
-      (last ? "\nYou can't open or search any more now: finish the task with what you have, or tell the student what is missing." : "\nContinue with the task: READ or SEARCH again only if you really need to, otherwise make the change now.") });
-  busy = false; renderThread(); saveChats(current);
-  return respond({ ...opts, step: steps });
-}
-
-/* Change blocks in an answer: ```file:PATH (whole file) and ```edit:PATH (find/replace parts). */
-function parseBlocks(answer) {
-  const out = [];
-  for (const m of answer.matchAll(/```(file|edit):([^\n]*)\n([\s\S]*?)```/gi)) out.push({ kind: m[1].toLowerCase(), path: m[2].trim().replace(/^\/+/, ""), body: m[3] });
-  return out;
-}
-function parseHunks(body) {
-  const hunks = [];
-  for (const m of body.matchAll(/<{5,}[ \t]*(?:FIND|SEARCH)[^\n]*\n([\s\S]*?)\n?={5,}[ \t]*\n([\s\S]*?)\n?>{5,}[^\n]*(?:\n|$)/g)) hunks.push({ find: m[1], put: m[2] });
-  return hunks;
-}
-function applyHunks(text, hunks) {
-  const errors = [];
-  for (const h of hunks) {
-    if (!h.find.trim()) { errors.push("a FIND part is empty"); continue; }
-    const at = text.indexOf(h.find);
-    if (at >= 0) { text = text.slice(0, at) + h.put + text.slice(at + h.find.length); continue; }
-    // same lines, but spaces at the start or end of lines differ
-    const L = text.split("\n"), F = h.find.split("\n").map((x) => x.trim());
-    while (F.length && !F[0]) F.shift(); while (F.length && !F[F.length - 1]) F.pop();
-    let i = -1;
-    for (let k = 0; k + F.length <= L.length; k++) if (F.every((f, j) => L[k + j].trim() === f)) { i = k; break; }
-    if (i < 0) { errors.push(`the FIND text that starts with "${F[0].slice(0, 70)}" is not in the file exactly like that`); continue; }
-    L.splice(i, F.length, ...h.put.split("\n")); text = L.join("\n");
-  }
-  return { text, errors };
-}
-async function resolveBlocks(blocks) { // -> [{ path, cur, content, errors, whole }]
-  const out = new Map();
-  for (const b of blocks) {
-    let r = out.get(b.path);
-    if (!r) { const cur = await ghRead(b.path); r = { path: b.path, cur, content: cur ? cur.text : null, errors: [], whole: false }; out.set(b.path, r); }
-    if (b.kind === "file") { r.content = b.body.endsWith("\n") ? b.body : b.body + "\n"; r.whole = true; continue; }
-    if (r.content == null) { r.errors.push("the file does not exist, so it can't be edited. Create it with a file block"); continue; }
-    const hunks = parseHunks(b.body);
-    if (!hunks.length) { r.errors.push("the edit block is not in the FIND / REPLACE format"); continue; }
-    const a = applyHunks(r.content, hunks); r.content = a.text; r.errors.push(...a.errors);
-  }
-  return [...out.values()];
-}
-function syntaxProblem(path, text) {
-  const js = (code) => { if (/^\s*(import|export)\s/m.test(code)) return ""; try { new Function(code); return ""; } catch (e) { return e instanceof SyntaxError ? e.message : ""; } };
-  if (/\.(json|webmanifest)$/i.test(path)) { try { JSON.parse(text); } catch (e) { return "it is not valid JSON (" + e.message + ")"; } return ""; }
-  if (/\.m?js$/i.test(path)) { const e = js(text); return e ? "JavaScript syntax error: " + e : ""; }
-  if (/\.html?$/i.test(path)) for (const m of text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
-    if (/\bsrc\s*=|type\s*=\s*["']?(module|importmap|application\/|text\/(?!javascript))/i.test(m[1])) continue;
-    const e = js(m[2]); if (e) return "JavaScript syntax error inside a <script>: " + e;
-  }
-  return "";
-}
-async function checkWork(opts) {
-  const msg = current.messages[current.messages.length - 1], round = opts.fix || 0;
-  const blocks = parseBlocks(msg.content);
-  if (!blocks.length) return msg.content;
-  const bad = blocks.find((b) => !/^[\w@()+ .\/-]+$/.test(b.path) || b.path.includes(".."));
-  let problems = [];
-  try {
-    if (bad) problems.push(`"${bad.path}" is not a usable file path`);
-    else for (const r of await resolveBlocks(blocks)) {
-      r.errors.forEach((e) => problems.push(`${r.path}: ${e}`));
-      if (r.content == null || r.errors.length) continue;
-      const s = syntaxProblem(r.path, r.content); if (s) problems.push(`${r.path}: ${s}`);
-      if (round === 0 && r.whole && r.cur && r.content.length < r.cur.text.length * 0.5) problems.push(`${r.path}: your version has ${r.content.split("\n").length} lines but the real file has ${r.cur.text.split("\n").length}. You left parts out. Give the complete file, or better, change it with an edit block`);
-    }
-  } catch { return msg.content; } // couldn't reach GitHub: show the answer unchecked
-  if (!problems.length) { msg.checked = true; renderThread(); saveChats(current); return msg.content; }
-  if (round >= 2) { msg.problems = problems; renderThread(); saveChats(current); return msg.content; }
-  msg.step = true; // hide the faulty try; Max still sees it
-  current.messages.push({ role: "user", auto: true, check: true, files: [], notes: problems,
-    content: "I checked your change before showing it to the student and found problems:\n- " + problems.join("\n- ") + "\nFix them. If a FIND text did not match, open that part of the file again with READ and copy the lines exactly. Then give ALL your file and edit blocks again, corrected." });
-  renderThread(); saveChats(current);
-  return respond({ ...opts, fix: round + 1 });
-}
-
-/* Publishing */
-const blockOf = (el) => ({ kind: el.dataset.kind || "file", path: el.dataset.path, body: el.querySelector("code").textContent });
-const commitMsg = () => ("Max: " + ([...current.messages].reverse().find((m) => m.role === "user" && !m.auto)?.content || "update").replace(/\s+/g, " ")).slice(0, 72);
-const netErr = (e) => (e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet and tap again." : e.message);
-function describe(list) { // what a publish will do, and whether anything looks wrong
-  const parts = []; let shrunk = false, changed = 0;
-  for (const r of list) {
-    if (r.cur && r.content === r.cur.text) { parts.push(`${r.path} (no change)`); continue; }
-    changed++;
-    if (r.cur && r.content.length < r.cur.text.length * 0.6) shrunk = true;
-    parts.push(r.cur ? `replaces ${r.path} (${r.cur.text.split("\n").length} → ${r.content.split("\n").length} lines)` : `creates ${r.path} (${r.content.split("\n").length} lines)`);
-  }
-  return { text: parts.join(", "), shrunk, changed };
-}
-async function publishBlocks(btn, blocks, say, where, label) {
-  if (!site) return openSiteDlg();
-  if (blocks.some((b) => !/^[\w@()+ .\/-]+$/.test(b.path) || b.path.includes(".."))) return say("Max gave a file name that can't be published.", true);
-  btn.disabled = true;
-  try {
-    if (btn.dataset.armed !== "1") { // first tap: work out the result and compare with what's live
-      const list = await resolveBlocks(blocks);
-      const errs = list.flatMap((r) => r.errors.map((e) => `${r.path}: ${e}`));
-      if (errs.length) { say("This change can't be applied (" + errs.join("; ") + "). Ask Max to try again.", true); btn.disabled = false; return; }
-      const d = describe(list);
-      if (!d.changed) { say("This is the same as what's on GitHub. Nothing to publish."); btn.disabled = false; return; }
-      say(`One update to ${site.repo}: ${d.text}.` + (d.shrunk ? " Warning: a file gets much shorter. Max may have left parts out. Run or read it first." : "") + " Tap again to publish.", d.shrunk);
-      btn._list = list.filter((r) => !r.cur || r.content !== r.cur.text);
-      btn.dataset.armed = "1"; btn.textContent = "Publish now"; btn.classList.toggle("warn", d.shrunk); btn.disabled = false;
-      return;
-    }
-    say("Publishing…");
-    const list = btn._list, post = async (path, body, method = "POST") => (await gh(`/repos/${site.repo}/git/${path}`, { method, body: JSON.stringify(body) })).json();
-    const head = (await (await gh(`/repos/${site.repo}/git/ref/heads/${ghPath(site.branch)}`)).json()).object.sha;
-    const base = (await (await gh(`/repos/${site.repo}/git/commits/${head}`)).json()).tree.sha;
-    const tree = await post("trees", { base_tree: base, tree: list.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })) });
-    const commit = await post("commits", { message: commitMsg(), tree: tree.sha, parents: [head] });
-    await post(`refs/heads/${ghPath(site.branch)}`, { sha: commit.sha }, "PATCH");
-    btn.textContent = "Published ✓"; btn.classList.remove("warn");
-    say("");
-    where.querySelector(".pubnote").innerHTML = `Published ${list.length === 1 ? esc(list[0].path) : list.length + " files"} to ${esc(site.repo)}. ${hostName() ? "" : "Your host usually updates the live site in about a minute. "}` + (commit.html_url ? `<a href="${esc(commit.html_url)}" target="_blank" rel="noopener">See the change on GitHub</a>` : "");
-    watchDeploy(commit.sha, where);
-    list.forEach((f) => { if (!site.tree.includes(f.path)) site.tree.push(f.path); }); saveSite();
-    return true;
-  } catch (e) { say(netErr(e), true); btn.disabled = false; btn.dataset.armed = ""; btn.textContent = label; }
-}
-/* Put the site online: GitHub Pages serves the repository's files as a website (free, no card). */
-function hostNote(html, bad) { const n = $("siteHostNote"); n.hidden = false; n.innerHTML = html; n.classList.toggle("err", !!bad); }
-async function siteHostOnline() {
-  const btn = $("siteHost"); btn.disabled = true; hostNote("Checking…");
-  try {
-    const [owner, name] = site.repo.split("/");
-    let pages = null;
-    try { pages = await (await gh(`/repos/${site.repo}/pages`)).json(); } catch (e) { if (e.status !== 404) throw e; }
-    if (!pages) {
-      await siteLoadTree().catch(() => {});
-      if (!site.tree.includes("index.html")) { hostNote("There is no index.html in this repository yet. Ask Max to make the page and Publish it first, then tap this again.", true); btn.disabled = false; return; }
-      pages = await (await gh(`/repos/${site.repo}/pages`, { method: "POST", body: JSON.stringify({ source: { branch: site.branch, path: "/" } }) })).json();
-    }
-    site.pagesUrl = pages.html_url || `https://${owner.toLowerCase()}.github.io/${name}/`; saveSite();
-    hostNote(`Online at <a href="${esc(site.pagesUrl)}" target="_blank" rel="noopener">${esc(site.pagesUrl)}</a>. The first time, it takes 1 to 2 minutes to appear. Anyone on the internet can open it, and every Publish updates it.`);
-  } catch (e) {
-    const m = e.status === 403 ? "GitHub didn't allow turning on hosting. You need to be an admin of this repository. If you connected with a token, it also needs the Pages permission (Read and write)."
-      : e.status === 422 ? "GitHub can't host this repository. A private repository needs a paid GitHub plan to use Pages. Make the repository public in its settings, or host it on Vercel instead."
-      : e.status === 409 ? "Hosting is already being set up. Wait a minute and tap again."
-      : e.message === "Failed to fetch" || e.message === "Load failed" ? "Couldn't reach GitHub. Check your internet." : e.message;
-    hostNote(esc(m), true);
-  }
-  btn.disabled = false;
-}
-$("siteHost").onclick = siteHostOnline;
-$("siteToggle").onclick = () => { site.paused = !site.paused; saveSite(); renderSite(); };
-function publishAll(btn, msgEl) {
-  const note = btn.parentElement.querySelector(".pubnote");
-  return publishBlocks(btn, [...msgEl.querySelectorAll(".codeblock[data-path]")].map(blockOf), (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); }, btn.parentElement, "Publish all")
-    .then((ok) => { if (ok) msgEl.querySelectorAll('[data-cb="publish"]').forEach((b) => { b.disabled = true; b.textContent = "Published ✓"; }); });
-}
-function publish(btn, block) {
-  let note = block.querySelector(".pubnote");
-  if (!note) { note = document.createElement("div"); note.className = "pubnote"; block.appendChild(note); }
-  return publishBlocks(btn, [blockOf(block)], (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); }, block, "Publish");
-}
-async function runEdit(block) { // preview an edited page: apply the edit to the live file first
-  try { const [r] = await resolveBlocks([blockOf(block)]); if (r.errors.length || r.content == null) throw new Error("This edit can't be applied: " + (r.errors.join("; ") || "file not found")); runCode("html", r.content); }
-  catch (e) { setStatus(netErr(e)); }
-}
-
-/* ---------- voice chat ---------- */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const synth = window.speechSynthesis;
-const V = { open: false, muted: false, state: "off", rec: null, spoken: 0, poll: 0, turn: 0 };
-const vEl = $("voice"), orb = $("orb"), vState = $("vstate"), vCap = $("vcaption");
-function vSet(state, label) { V.state = state; orb.dataset.state = state; vState.textContent = label; }
-function vCaption(text, you) { vCap.textContent = text; vCap.classList.toggle("you", !!you); }
-const speakable = (t) => t.replace(/```[\s\S]*?```/g, " code example. ").replace(/[*_`#>]/g, "").replace(/^\s*[-•]\s+/gm, "").replace(/\(Score: (\d+)\/(\d+)\)/g, "Score: $1 out of $2.").replace(/\s+/g, " ").trim();
-function vSay(text) {
-  text = speakable(text); if (!text || !synth) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = navigator.language || "en-US"; u.rate = 1.02;
-  synth.speak(u);
-}
-function vListen() {
-  if (!V.open) return;
-  if (V.muted) return vSet("muted", "Mic is muted");
-  vSet("listening", "Listening…");
-  if (!SR) return;
-  try { V.rec?.abort(); } catch {}
-  const rec = V.rec = new SR();
-  rec.lang = navigator.language || "en-US"; rec.interimResults = true; rec.continuous = false;
-  let finalText = "";
-  rec.onresult = (e) => {
-    let interim = "";
-    for (let i = e.resultIndex; i < e.results.length; i++) (e.results[i].isFinal ? (finalText += e.results[i][0].transcript) : (interim += e.results[i][0].transcript));
-    vCaption(finalText + interim, true);
-  };
-  rec.onerror = (e) => {
-    if (e.error === "not-allowed" || e.error === "service-not-allowed") { V.muted = true; $("vmute").setAttribute("aria-pressed", "true"); vSet("muted", "Max can't use the microphone"); vCaption("Allow the microphone for this site in your browser settings, then tap the mic button."); }
-  };
-  rec.onend = () => {
-    if (V.rec !== rec || !V.open || V.state !== "listening") return;
-    if (finalText.trim()) vAsk(finalText.trim()); else setTimeout(vListen, 250);
-  };
-  try { rec.start(); } catch { setTimeout(vListen, 600); }
-}
-async function vAsk(text) {
-  const turn = ++V.turn;
-  vSet("thinking", "Thinking…"); V.spoken = 0; clearInterval(V.poll);
-  let failed = "";
-  const answer = await send(text, {
-    voice: true,
-    onError: (m) => { failed = m; },
-    onText: (full) => {
-      if (turn !== V.turn || !V.open) return;
-      const rest = full.slice(V.spoken), m = rest.match(/^[\s\S]*[.!?:\n](?=\s)/);
-      if (!m) return;
-      if (V.state !== "speaking") vSet("speaking", "Max is talking");
-      vSay(m[0]); V.spoken += m[0].length; vCaption(speakable(full));
-    },
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { show(t); });
+    t.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(tabs[(i + 1) % tabs.length], true); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(tabs[(i + tabs.length - 1) % tabs.length], true); }
+    });
   });
-  if (turn !== V.turn || !V.open) return;
-  if (!answer) { vCaption(failed || "Max didn't answer. Try again."); return setTimeout(() => turn === V.turn && vListen(), 2500); }
-  if (V.state !== "speaking") vSet("speaking", "Max is talking");
-  vSay(answer.slice(V.spoken)); vCaption(speakable(answer));
-  if (!synth) return vListen();
-  const started = Date.now();
-  V.poll = setInterval(() => {
-    if (turn !== V.turn || !V.open) return clearInterval(V.poll);
-    if ((!synth.speaking && !synth.pending && Date.now() - started > 400) || Date.now() - started > 120000) { clearInterval(V.poll); vCaption(""); vListen(); }
-  }, 250);
-}
-function vInterrupt() { V.turn++; clearInterval(V.poll); synth?.cancel(); if (busy) ctl?.abort(); }
-function vOpen() {
-  if (busy) return;
-  V.open = true; V.muted = false; $("vmute").setAttribute("aria-pressed", "false"); $("vmute").innerHTML = svg("mic");
-  vEl.hidden = false; vCaption("");
-  if (synth) { synth.cancel(); const u = new SpeechSynthesisUtterance(" "); u.volume = 0; synth.speak(u); } // lets the phone speak later
-  if (!SR) { vSet("off", "This browser can't listen"); vCaption("Voice chat needs speech recognition. Try Safari on iPhone, or Chrome on a computer or Android."); return; }
-  vListen();
-}
-function vClose() {
-  V.open = false; vInterrupt(); try { V.rec?.abort(); } catch {} V.rec = null; vEl.hidden = true; input.focus();
-}
-$("voiceBtn").onclick = vOpen;
-$("vclose").onclick = vClose;
-$("vmute").onclick = () => {
-  V.muted = !V.muted; $("vmute").setAttribute("aria-pressed", String(V.muted)); $("vmute").innerHTML = svg(V.muted ? "micoff" : "mic");
-  if (V.muted) { try { V.rec?.abort(); } catch {} if (V.state === "listening") vSet("muted", "Mic is muted"); }
-  else if (V.state === "muted" || V.state === "listening") vListen();
-};
-orb.onclick = () => { if (V.state === "speaking" || V.state === "thinking") { vInterrupt(); vCaption(""); vListen(); } };
-document.addEventListener("visibilitychange", () => { if (document.hidden && V.open) vClose(); });
-
-/* ---------- controls ---------- */
-function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
-input.addEventListener("input", () => { autosize(); updateSend(); });
-input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(input.value); } });
-$("composer").addEventListener("submit", (e) => { e.preventDefault(); if (busy) ctl?.abort(); else submit(input.value); });
-async function submit(text) {
-  if (!siteMode()) return send(text);
-  if (!site) return openSiteDlg();
-  if (!text.trim()) return;
-  sendBtn.disabled = true; setStatus("");
-  try { siteLoadTree().catch(() => {}); send(text, { files: site.picked?.length ? await siteFilesForSend() : [], site: true }); }
-  catch (e) { setStatus(e.message); updateSend(); }
-}
-$("starters").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setMode(b.dataset.mode); send(b.firstChild.textContent); });
-
-function setMode(m) {
-  prefs.mode = m; savePrefs();
-  document.querySelectorAll(".modes button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m)));
-  $("modeTag").textContent = MODES[m].label;
-  renderSite();
-}
-document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
-$("modeTag").title = "Tap to switch: Haiku, Sonnet, Opus, Ultra, Code";
-$("modeTag").style.cursor = "pointer";
-$("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
-
-const pop = $("popover"), setBtn = $("settingsBtn");
-setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
-document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== setBtn) { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); } });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("runner").hidden) $("runClose").click(); if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
-// Max's brain: his free AI plus any stronger AI providers this person connected. Kept in this browser only (keys).
-const PROVIDERS = [
-  { id: "gemini", name: "Google Gemini", about: "Strong and fast. Free key with a Google account, no card.", link: "https://aistudio.google.com/apikey" },
-  { id: "github", name: "GitHub Models", about: "Uses the GitHub account you connected in Connect a website. Nothing to paste. Small questions only on the free plan.", noKey: true },
-  { id: "openrouter", name: "OpenRouter", about: "Many free models behind one free key, no card.", link: "https://openrouter.ai/keys" },
-  { id: "groq", name: "Groq", about: "Very fast open models. Free key, no card.", link: "https://console.groq.com/keys" },
-  { id: "anthropic", name: "Claude (Anthropic)", about: "The strongest option, and the one I run on. Needs an Anthropic API key with credit added; a Claude chat subscription doesn't include one.", link: "https://console.anthropic.com/settings/keys" },
-  { id: "aimlapi", name: "AI/ML API", about: "Many strong models (GPT, Claude, Gemini and more) behind one key. It may need funds added to the account.", link: "https://aimlapi.com/app/keys" },
-  { id: "mistral", name: "Mistral", about: "Free plan after a phone check.", link: "https://console.mistral.ai/api-keys" },
-  { id: "custom", name: "Your own router (OmniRoute and others)", about: "A server you run that speaks the OpenAI chat format. It needs a public https address.", custom: true },
-];
-let brains = store.get("max.brains", {});
-{ const old = store.get("max.brain", null); if (old?.kind === "own" && old.url && !brains.custom) { brains.custom = { url: old.url, key: old.key, model: old.model }; store.set("max.brains", brains); } }
-function brainList() { // what to send with a question, strongest first
-  const out = [];
-  for (const id of ["custom", "anthropic", "aimlapi", "gemini", "github", "openrouter", "groq", "mistral"]) {
-    const c = brains[id]; if (!c) continue;
-    if (id === "github") { if (c.on && site?.token) out.push({ id, key: site.token, model: c.model || "" }); }
-    else if (id === "custom") { if (c.url) out.push({ id, url: c.url, key: c.key || "", model: c.model || "auto" }); }
-    else if (c.key) out.push({ id, key: c.key, model: c.model || "" });
-  }
-  return out.slice(0, 4);
-}
-function brainLabel() { const n = brainList().length; $("brainBtn").textContent = n ? `Max's brain: ${n} connected + free AI` : "Max's brain: free AI"; }
-function brainRender() {
-  $("brainRows").innerHTML = PROVIDERS.map((p) => {
-    const c = brains[p.id] || {};
-    const on = p.noKey ? c.on && site?.token : p.custom ? c.url : c.key;
-    return `<div class="prov${on ? " on" : ""}" data-id="${p.id}"><b>${esc(p.name)}</b><span class="about">${esc(p.about)}${p.link ? ` <a href="${p.link}" target="_blank" rel="noopener">Get a free key</a>` : ""}</span>` +
-      (p.noKey ? `<label class="check"><input type="checkbox" data-f="on"${c.on ? " checked" : ""}${site?.token ? "" : " disabled"}>${site?.token ? "Use my GitHub account" : "Connect GitHub first (sidebar → Connect a website)"}</label>` : "") +
-      (p.custom ? `<input type="text" data-f="url" placeholder="Address: https://…/v1" value="${esc(c.url || "")}" autocomplete="off" autocapitalize="off" spellcheck="false">` : "") +
-      `<div class="row">${p.noKey ? "" : `<input type="password" data-f="key" placeholder="Paste the key here" value="${esc(c.key || "")}" autocomplete="off">`}<input type="text" data-f="model" placeholder="Model: automatic" value="${esc(c.model || "")}" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn ghost" type="button" data-test="1">Test</button></div><span class="result"></span></div>`;
-  }).join("");
-}
-$("brainRows").addEventListener("input", (e) => {
-  const row = e.target.closest(".prov"), f = e.target.dataset.f; if (!row || !f) return;
-  const c = (brains[row.dataset.id] ||= {});
-  c[f] = e.target.type === "checkbox" ? e.target.checked : e.target.value.trim();
-  store.set("max.brains", brains); brainLabel();
-  const p = PROVIDERS.find((x) => x.id === row.dataset.id);
-  row.classList.toggle("on", !!(p.noKey ? c.on && site?.token : p.custom ? c.url : c.key));
-});
-$("brainRows").addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-test]"); if (!btn) return;
-  const row = btn.closest(".prov"), res = row.querySelector(".result"), entry = brainList().find((b) => b.id === row.dataset.id);
-  const show = (t, cls) => { res.textContent = t; res.className = "result " + (cls || ""); };
-  if (!entry) return show(row.dataset.id === "github" ? "Tick the box first." : row.dataset.id === "custom" ? "Enter the address first." : "Paste a key first.", "bad");
-  btn.disabled = true; show("Testing…");
-  try {
-    const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ test: true, brains: [entry], messages: [{ role: "user", content: "Reply with only the word OK." }] }) });
-    if (!r.ok) { let m = "It didn't work."; try { m = (await r.json()).error || m; } catch {} throw new Error(m); }
-    const raw = await r.text(); let model = "", err = "";
-    for (const m of raw.matchAll(/\u0001([^\u0001]*)\u0001/g)) { try { const n = JSON.parse(m[1]); if (n.model) model = n.model; if (n.error) err = n.error; } catch {} }
-    const text = raw.replace(/\u0001[^\u0001]*\u0001/g, "").trim();
-    if (!text) throw new Error(err || "It sent back nothing.");
-    show(`Works. ${model} answered: ${text.slice(0, 40)}`, "ok");
-  } catch (e2) { show(e2.message === "Failed to fetch" || e2.message === "Load failed" ? "Couldn't reach Max's server. Check your internet." : e2.message, "bad"); }
-  btn.disabled = false;
-});
-$("brainBtn").onclick = () => { pop.hidden = true; brainRender(); $("brainDlg").hidden = false; };
-$("brainDone").onclick = () => { $("brainDlg").hidden = true; brainLabel(); };
-brainLabel();
-
-const isPhone = () => matchMedia("(max-width: 820px)").matches;
-function closeSideOnPhone() { shell.classList.remove("side-open"); }
-$("openSide").onclick = () => { if (isPhone()) shell.classList.add("side-open"); else { shell.classList.remove("collapsed"); prefs.collapsed = false; savePrefs(); } };
-$("closeSide").onclick = () => { if (isPhone()) closeSideOnPhone(); else { shell.classList.add("collapsed"); prefs.collapsed = true; savePrefs(); } };
-$("scrim").onclick = closeSideOnPhone;
-$("newChat").onclick = () => { if (!busy) newChat(); };
-
-/* ---------- start ---------- */
-function applyPrefs() {
-  if (MODES[prefs.mode]) setMode(prefs.mode);
-}
-setMode(MODES[prefs.mode] ? prefs.mode : "sonnet");
-if (prefs.collapsed) shell.classList.add("collapsed");
-const hr = new Date().getHours();
-$("greeting").textContent = (hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + ". What do you want to learn?";
-newChat();
-if (D) {
-  const css = getComputedStyle(document.documentElement);
-  D.button($("account"), { background: css.getPropertyValue("--accent").trim(), color: css.getPropertyValue("--accent-ink").trim() });
-  const foot = () => { $("sideFoot").textContent = signedIn() ? `Signed in as ${D.user().name}. Your lessons are saved to your Deluxe account.` : "Chats are saved only in this browser. Sign in with Deluxe Main to keep them on every device."; };
-  D.ready.then(() => { foot(); cloudLoad(); });
-  D.onChange((user) => { foot(); if (user) cloudLoad(); });
-}
-
+})();
 </script>
 </body>
 </html>

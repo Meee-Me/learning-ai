@@ -65,9 +65,11 @@ the team to unlock its free AI credit.
 ## Files
 
 ```
-index.html     the whole app
-api/chat.js    Vercel function: the cloud brain
-api/github.js  Vercel function: Connect GitHub sign-in
+index.html     the home page: a one-page site about Max. Its Open Max buttons lead to the app
+app/index.html Max himself, served at /app/
+api/chat.js    the server function: Max's brain (a small AI router)
+api/github.js  the server function behind Connect GitHub
+vercel.json    sends the old /about address to the home page
 ```
 
 ## Deploy on Vercel
