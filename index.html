@@ -81,7 +81,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
 .topbar .title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 14px; }
 .shell:not(.collapsed) .topbar .open-side { display: none; }
 .account:empty { display: none; }
-@media (max-width: 520px) { .settings-btn #levelTag { display: none; } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .settings-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .settings-btn:hover { border-color: var(--accent); }
 .popover { position: absolute; top: 52px; right: max(12px, env(safe-area-inset-right, 0px)); z-index: 20; width: min(320px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
@@ -315,21 +315,9 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
       <button class="iconbtn open-side" id="openSide" type="button" aria-label="Show chats"><svg><use href="#i-side"/></svg></button>
       <div class="title" id="title"></div>
       <div id="account" class="account"></div>
-      <button class="settings-btn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="popover"><svg><use href="#i-tune"/></svg><span id="levelTag">High school</span></button>
+      <button class="settings-btn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="popover"><svg><use href="#i-tune"/></svg><span class="sr">Settings</span></button>
     </div>
     <div class="popover" id="popover" hidden>
-      <label>Level
-        <select id="level">
-          <option>Kid (8–11)</option>
-          <option>Middle school</option>
-          <option selected>High school</option>
-          <option>College</option>
-          <option>Adult beginner</option>
-        </select>
-      </label>
-      <label>Subject (optional)
-        <input id="subject" type="text" placeholder="e.g. fractions, biology, Python">
-      </label>
       <button class="btn ghost brainbtn" id="brainBtn" type="button">Max's brain: free AI</button>
     </div>
 
@@ -852,7 +840,7 @@ async function respond(opts = {}) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: siteMode() ? "site" : prefs.mode === "code" ? "code" : "chat", tier: TIERS[prefs.mode], brains: brainList(), voice: !!opts.voice, site: siteMode() ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
+      body: JSON.stringify({ messages: modelMessages(), mode: siteMode() ? "site" : prefs.mode === "code" ? "code" : "chat", tier: TIERS[prefs.mode], brains: brainList(), voice: !!opts.voice, site: siteMode() ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -1512,8 +1500,6 @@ const pop = $("popover"), setBtn = $("settingsBtn");
 setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
 document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && e.target !== setBtn) { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("runner").hidden) $("runClose").click(); if (V.open) vClose(); pop.hidden = true; shell.classList.remove("side-open"); } });
-$("level").onchange = (e) => { prefs.level = e.target.value; $("levelTag").textContent = prefs.level; savePrefs(); };
-$("subject").oninput = (e) => { prefs.subject = e.target.value.trim(); savePrefs(); };
 // Max's brain: his free AI plus any stronger AI providers this person connected. Kept in this browser only (keys).
 const PROVIDERS = [
   { id: "gemini", name: "Google Gemini", about: "Strong and fast. Free key with a Google account, no card.", link: "https://aistudio.google.com/apikey" },
@@ -1586,12 +1572,8 @@ $("newChat").onclick = () => { if (!busy) newChat(); };
 
 /* ---------- start ---------- */
 function applyPrefs() {
-  $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
-  $("subject").value = prefs.subject || "";
   if (MODES[prefs.mode]) setMode(prefs.mode);
 }
-$("level").value = prefs.level; $("levelTag").textContent = prefs.level;
-$("subject").value = prefs.subject || "";
 setMode(MODES[prefs.mode] ? prefs.mode : "sonnet");
 if (prefs.collapsed) shell.classList.add("collapsed");
 const hr = new Date().getHours();
