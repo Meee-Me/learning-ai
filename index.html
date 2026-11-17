@@ -340,16 +340,15 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
           <h1 id="greeting">What do you want to learn today?</h1>
           <p>Ask a question, or attach your notes, homework or a worksheet. Max will explain it step by step.</p>
           <div class="modes" role="group" aria-label="How Max helps">
-            <button type="button" data-mode="teach" aria-pressed="true">Teach me</button>
-            <button type="button" data-mode="quiz" aria-pressed="false">Quiz me</button>
-            <button type="button" data-mode="hint" aria-pressed="false">Hints only</button>
-            <button type="button" data-mode="code" aria-pressed="false">Code</button>
-            <button type="button" data-mode="site" aria-pressed="false">Edit website</button>
+            <button type="button" data-mode="haiku" aria-pressed="false" title="Fastest. Quick answers.">Haiku</button>
+            <button type="button" data-mode="sonnet" aria-pressed="true" title="Balanced. Good for most questions.">Sonnet</button>
+            <button type="button" data-mode="ultra" aria-pressed="false" title="Smartest. Thinks hardest, so it is slower.">Ultra</button>
+            <button type="button" data-mode="code" aria-pressed="false" title="Writes code, and edits your website when one is connected.">Code</button>
           </div>
           <div class="starters" id="starters">
-            <button type="button" data-mode="teach">Explain photosynthesis<span>Simply, with an example</span></button>
-            <button type="button" data-mode="hint">Help me solve 3x + 5 = 20<span>Hints only, no answer</span></button>
-            <button type="button" data-mode="quiz">Quiz me on the planets<span>One question at a time</span></button>
+            <button type="button" data-mode="sonnet">Explain photosynthesis<span>Simply, with an example</span></button>
+            <button type="button" data-mode="sonnet">Help me solve 3x + 5 = 20<span>Hints only, no answer</span></button>
+            <button type="button" data-mode="haiku">Quiz me on the planets<span>One question at a time</span></button>
             <button type="button" data-mode="code">Make a tic-tac-toe game<span>Max writes it, you run it</span></button>
           </div>
         </section>
@@ -363,6 +362,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
           <div class="sitebar" id="siteBar" hidden>
             <span class="sitelabel" id="siteLabel"></span>
             <span class="files" id="siteFiles"></span>
+            <button class="addfile" id="siteToggle" type="button" title="Code without changing this website">Pause</button>
             <button class="addfile" id="siteAdd" type="button">+ File</button>
             <button class="addfile host" id="siteHost" type="button">Put it online</button>
             <span class="hostnote" id="siteHostNote" hidden></span>
@@ -372,7 +372,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
           <div class="row">
             <button class="iconbtn" id="attach" type="button" aria-label="Attach files" title="Attach files (PDF, Word, text, code, images)"><svg><use href="#i-clip"/></svg></button>
             <input id="fileInput" type="file" multiple hidden accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.rb,.go,.rs,.php,.sql,.xml,.yaml,.yml,.tex,.rtf,image/*,text/*">
-            <span class="mode-tag" id="modeTag">Teach me</span>
+            <span class="mode-tag" id="modeTag">Sonnet</span>
             <span class="grow"></span>
             <button class="iconbtn voicebtn" id="voiceBtn" type="button" aria-label="Talk to Max" title="Talk to Max"><svg><use href="#i-wave"/></svg></button>
             <button class="send" id="send" type="submit" aria-label="Send" disabled><svg><use href="#i-up"/></svg></button>
@@ -513,15 +513,12 @@ const FILE_CHAR_LIMIT = 60000;  // what we keep from each file
 const MAX_FILE_MB = 25;
 
 const MODES = {
-  teach: { label: "Teach me", rule: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding." },
-  quiz:  { label: "Quiz me", rule: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3)." },
-  code:  { label: "Code", rule: "CODE. Write complete, working code." },
-  site:  { label: "Edit website", rule: "EDIT WEBSITE." },
-  hint:  { label: "Hints only", rule: "HINTS ONLY. Never give the final answer. Give one small hint or guiding question so the student does the work." },
+  haiku:  { label: "Haiku" },
+  sonnet: { label: "Sonnet" },
+  ultra:  { label: "Ultra" },
+  code:   { label: "Code" },
 };
-const systemPrompt = (c) => `You are Max, a warm, patient, encouraging tutor. Student level: ${c.level}.${c.subject ? " Subject: " + c.subject + "." : ""}
-Mode: ${MODES[c.mode].rule}
-Rules: keep replies short (under 150 words). Use short paragraphs, bullet lists and **bold** key words. Be kind about mistakes: point to the exact wrong step and let them retry. Guide homework instead of just giving answers. Write math in plain text like 3x + 5 = 20. If the student attached a file, its text is included in their message between <file> tags: use it to teach them. If you are not sure about a fact, say so.`;
+const TIERS = { haiku: "light", sonnet: "standard", ultra: "heavy", code: "heavy" };
 
 const $ = (id) => document.getElementById(id);
 const shell = $("shell"), thread = $("thread"), welcome = $("welcome"), input = $("input"), sendBtn = $("send");
@@ -533,7 +530,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
 };
 let chats = store.get("max.chats", []);
-let prefs = store.get("max.prefs", { level: "High school", subject: "", mode: "teach", collapsed: false });
+let prefs = store.get("max.prefs", { level: "High school", subject: "", mode: "sonnet", collapsed: false });
+{ const old = { teach: "sonnet", quiz: "sonnet", hint: "sonnet", site: "code" }[prefs.mode]; if (old) prefs.mode = old; if (!(prefs.mode in { haiku: 1, sonnet: 1, ultra: 1, code: 1 })) prefs.mode = "sonnet"; }
 let current = null;      // the open chat object
 let pending = [];        // files waiting to send: {id,name,size,kind,text,thumb,status}
 let busy = false, ctl = null;
@@ -852,7 +850,7 @@ async function respond(opts = {}) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: prefs.mode, brains: brainList(), voice: !!opts.voice, site: prefs.mode === "site" && site ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
+      body: JSON.stringify({ messages: modelMessages(), level: prefs.level, subject: prefs.subject, mode: siteMode() ? "site" : prefs.mode === "code" ? "code" : "chat", tier: TIERS[prefs.mode], brains: brainList(), voice: !!opts.voice, site: siteMode() ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -883,7 +881,7 @@ async function respond(opts = {}) {
     if (e.name !== "AbortError") { const shown = /failed to fetch|load failed|network/i.test(msg) ? (answer.trim() ? "Max got cut off before he finished. Ask him to continue." : "Max couldn't reach his server. Check your internet and try again.") : msg; setStatus(shown); opts.onError?.(shown); }
   }
   const stopped = !!ctl?.signal.aborted;
-  const agent = !stopped && prefs.mode === "site" && !!site;
+  const agent = !stopped && siteMode();
   const act = agent ? parseActions(answer) : null;
   if (answer.trim()) current.messages.push({ role: "assistant", content: answer.trim(), model: usedModel, ...(act ? { step: true } : {}) });
   busy = false; ctl = null;
@@ -937,11 +935,13 @@ async function siteFilesForSend() {
   }
   return out;
 }
+const siteMode = () => prefs.mode === "code" && !!site && !site.paused; // Code edits the connected website unless paused
 function renderSite() {
   $("siteBtnText").textContent = site ? site.repo : "Connect a website";
-  $("siteBar").hidden = !(site && prefs.mode === "site");
+  $("siteBar").hidden = !(site && prefs.mode === "code");
   if (!site) return;
-  $("siteLabel").textContent = "Editing " + site.repo + ":";
+  $("siteLabel").textContent = (site.paused ? "Not editing " : "Editing ") + site.repo + (site.paused ? "" : ":");
+  $("siteFiles").hidden = $("siteAdd").hidden = $("siteHost").hidden = !!site.paused; $("siteToggle").textContent = site.paused ? "Edit it again" : "Pause";
   if (site.pagesUrl) hostNote(`Online at <a href="${esc(site.pagesUrl)}" target="_blank" rel="noopener">${esc(site.pagesUrl)}</a>`); else $("siteHostNote").hidden = true;
   $("siteFiles").innerHTML = (site.picked || []).map((p) => `<span class="chip" data-path="${esc(p)}"><b title="${esc(p)}">${esc(p)}</b><button class="iconbtn x" type="button" aria-label="Remove ${esc(p)}">${svg("x")}</button></span>`).join("") || "Max opens the files he needs";
 }
@@ -1032,10 +1032,10 @@ $("ghRepoList").addEventListener("click", async (e) => {
   const b = e.target.closest("button[data-repo]"); if (!b) return;
   const before = site;
   site = { repo: b.dataset.repo, token: pendingToken, branch: b.dataset.branch, picked: [], oauth: true };
-  try { await siteLoadTree(); pendingToken = ""; ghRun++; $("siteDlg").hidden = true; setMode("site"); renderSite(); }
+  try { await siteLoadTree(); pendingToken = ""; ghRun++; $("siteDlg").hidden = true; setMode("code"); renderSite(); }
   catch (e2) { site = before; $("siteErr").textContent = netErr(e2); $("siteErr").hidden = false; }
 });
-$("siteOff").onclick = () => { site = null; saveSite(); hosts = {}; saveHosts(); if (prefs.mode === "site") setMode("code"); renderSite(); $("siteDlg").hidden = true; };
+$("siteOff").onclick = () => { site = null; saveSite(); hosts = {}; saveHosts(); renderSite(); $("siteDlg").hidden = true; };
 $("siteForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const repo = $("siteRepo").value.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$|\/+$/g, ""), token = $("siteToken").value.trim();
@@ -1060,7 +1060,7 @@ $("siteForm").addEventListener("submit", async (e) => {
       if (!r.ok) throw new Error("Netlify didn't accept that token. Make a new one, or leave the Netlify box empty.");
       next.netlify = { token: nt }; }
     hosts = next; saveHosts();
-    $("siteDlg").hidden = true; setMode("site"); renderSite();
+    $("siteDlg").hidden = true; setMode("code"); renderSite();
   } catch (e2) { site = before; err(e2.message === "Failed to fetch" || e2.message === "Load failed" ? "Couldn't reach GitHub. Check your internet." : e2.message); }
   $("siteGo").disabled = false;
 });
@@ -1379,6 +1379,7 @@ async function siteHostOnline() {
   btn.disabled = false;
 }
 $("siteHost").onclick = siteHostOnline;
+$("siteToggle").onclick = () => { site.paused = !site.paused; saveSite(); renderSite(); };
 function publishAll(btn, msgEl) {
   const note = btn.parentElement.querySelector(".pubnote");
   return publishBlocks(btn, [...msgEl.querySelectorAll(".codeblock[data-path]")].map(blockOf), (t, bad) => { note.textContent = t; note.classList.toggle("err", !!bad); }, btn.parentElement, "Publish all")
@@ -1485,7 +1486,7 @@ input.addEventListener("input", () => { autosize(); updateSend(); });
 input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(input.value); } });
 $("composer").addEventListener("submit", (e) => { e.preventDefault(); if (busy) ctl?.abort(); else submit(input.value); });
 async function submit(text) {
-  if (prefs.mode !== "site") return send(text);
+  if (!siteMode()) return send(text);
   if (!site) return openSiteDlg();
   if (!text.trim()) return;
   sendBtn.disabled = true; setStatus("");
@@ -1495,16 +1496,15 @@ async function submit(text) {
 $("starters").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setMode(b.dataset.mode); send(b.firstChild.textContent); });
 
 function setMode(m) {
-  if (m === "site" && !site) { openSiteDlg(); return; }
   prefs.mode = m; savePrefs();
   document.querySelectorAll(".modes button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m)));
   $("modeTag").textContent = MODES[m].label;
   renderSite();
 }
 document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
-$("modeTag").title = "Click to switch mode";
+$("modeTag").title = "Tap to switch: Haiku, Sonnet, Ultra, Code";
 $("modeTag").style.cursor = "pointer";
-$("modeTag").onclick = () => { const k = Object.keys(MODES).filter((x) => x !== "site" || site); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
+$("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
 
 const pop = $("popover"), setBtn = $("settingsBtn");
 setBtn.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); };
@@ -1586,11 +1586,11 @@ $("newChat").onclick = () => { if (!busy) newChat(); };
 function applyPrefs() {
   $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
   $("subject").value = prefs.subject || "";
-  if (MODES[prefs.mode] && (prefs.mode !== "site" || site)) setMode(prefs.mode);
+  if (MODES[prefs.mode]) setMode(prefs.mode);
 }
 $("level").value = prefs.level; $("levelTag").textContent = prefs.level;
 $("subject").value = prefs.subject || "";
-setMode(MODES[prefs.mode] && (prefs.mode !== "site" || site) ? prefs.mode : "teach");
+setMode(MODES[prefs.mode] ? prefs.mode : "sonnet");
 if (prefs.collapsed) shell.classList.add("collapsed");
 const hr = new Date().getHours();
 $("greeting").textContent = (hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + ". What do you want to learn?";

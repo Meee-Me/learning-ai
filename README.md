@@ -1,60 +1,9 @@
 # Max — AI tutor
 
-Max is a friendly AI tutor. Pick a subject and level, then choose how he helps:
-
-- **Teach me**: explains one small step at a time, then checks you understood.
-- **Quiz me**: asks one question at a time and keeps score.
-- **Hints only**: never gives the final answer; nudges you to solve it yourself.
-- **Code**: writes complete, working code. Web pages and JavaScript get a **Run** button that runs
-  them right in the page (in a sandbox); every code block has a Copy button.
-
-## Edit a website
-
-Max can change a website that lives in a GitHub repository; Vercel (or any host that deploys from
-GitHub) then rebuilds it.
-
-1. Tap **Connect a website** in the sidebar, then **Connect GitHub**: GitHub shows a short code,
-   you approve, and you pick the repository from a list. No token to paste. (Pasting tokens still
-   works under "Use access tokens instead".)
-2. In **Edit website** mode, tell him what to change. Max sees the list of files, opens the ones he
-   needs by himself (shown as "Max opened …"), then answers with the complete new files.
-   **+ File** lets you hand him files up front.
-3. **Run** previews web pages. **Publish** sends one file; **Publish all** sends every changed file
-   as a single update. Both take two taps and warn when a file got much shorter.
-
-How Max works on a site, step by step:
-
-- **Search**: he can search every file for a word to find where something is.
-- **Open**: he opens whole files, or just some lines of a big file, so file size is no longer a limit.
-- **Edit**: for small changes he writes find-and-replace edits instead of rewriting the whole file.
-- **Check**: before you see a change, it is applied to a copy and checked: every edit must match the
-  real file, JavaScript and JSON must parse, and a rewritten file must not lose half its lines. If
-  something is wrong Max is told and fixes it (up to two tries). Answers that pass show "✓ checked".
-
-**Put it online:** in Edit website mode, the **Put it online** button above the message box turns on
-GitHub Pages for the connected repository (free, no card). Max shows the site's address, and every
-Publish updates it. It needs an `index.html` at the top of the repository, admin rights on it, and a
-public repository (private ones need a paid GitHub plan for Pages).
-
-After a publish Max follows the rebuild through GitHub (Vercel, Netlify and others report back
-there), says when the change is live, and offers **Ask Max to fix it** if the build fails. Vercel or
-Netlify tokens are only needed to read full build error logs.
-
-### One-time setup for Connect GitHub (owner only)
-
-GitHub only shows its Authorize screen for registered apps, so the owner of this copy of Max
-registers him once. The first tap on **Connect GitHub** walks through it and asks for the app's
-**Client ID** (public, not a secret). Right after connecting, the owner sees **Save for everyone**,
-which writes `max.config.json` into Max's own repository. From then on nobody else does any setup:
-they tap Connect GitHub, approve, and pick a repository.
-
-The token stays in the browser and is only sent to GitHub. The picked files are sent to Max's AI.
-Max reads up to 30,000 characters of files at a time, so big files can't be edited.
-
-## Website
-
-`about/index.html` is a one-page site about Max, served at `/about/` on the same Vercel project
-(a plain static file, no build). Edit it like any other file.
+Max is a friendly AI tutor. Pick a level, then pick how hard he thinks with the buttons on the welcome screen or by tapping the
+mode name in the message box: **Haiku** (fastest), **Sonnet** (balanced), **Ultra** (smartest, slowest)
+and **Code** (writes code, and edits the connected website). Ask for a style in plain words: "teach
+me", "quiz me" or "hints only".
 
 ## Features
 

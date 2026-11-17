@@ -18,6 +18,7 @@ const URL_ = OWN ? (/\/chat\/completions$/.test(OWN) ? OWN : OWN + "/chat/comple
   : "https://text.pollinations.ai/openai";
 
 const MODES = {
+  chat: "Teach by default: explain the idea in small steps with a simple example or analogy for the level, then ask ONE short question to check understanding. If the student asks to be quizzed, ask one question at a time and wait; when they answer, say if it is right and why in one or two sentences, then ask the next, slightly harder question, keeping score like (Score: 2/3). If the student asks for hints only, never give the final answer: give one small hint or guiding question so they do the work.",
   teach: "TEACH ME. Explain the idea in small steps with a simple example or analogy for the level. Then ask ONE short question to check understanding.",
   quiz: "QUIZ ME. Ask one question at a time and wait. When the student answers, say if it is right, explain why in one or two sentences, then ask the next, slightly harder question. Keep score like (Score: 2/3).",
   code: "CODE",
@@ -106,7 +107,7 @@ async function freeModels(hard) {
 /* Max's built-in router. People connect AI providers in Max's settings (a free key each, or their
    connected GitHub account); every question is tried on those, strongest first, then on the free AI. */
 const PRESETS = {
-  anthropic: { name: "Claude", url: "https://api.anthropic.com/v1", fixed: true, needMax: true, hard: ["claude-sonnet-5-5", "claude-haiku-5-5"], quick: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
+  anthropic: { name: "Claude", url: "https://api.anthropic.com/v1", fixed: true, needMax: true, hard: ["claude-opus-5-5", "claude-sonnet-5-5"], mid: ["claude-sonnet-5-5", "claude-haiku-5-5"], quick: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
   gemini: { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai", fallback: ["gemini-2.5-flash"] },
   github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
   openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
@@ -155,7 +156,7 @@ function readBrains(body) { // -> { brains } or { error }
 async function brainModels(b, tier) {
   const hard = tier === "heavy";
   if (b.model) return b.model.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
-  if (b.fixed) return hard ? b.hard : b.quick; // this provider's models are known, so no lookup
+  if (b.fixed) return hard ? b.hard : tier === "standard" && b.mid ? b.mid : b.quick; // this provider's models are known, so no lookup
   const cacheKey = `${b.id}:${b.key.slice(-8)}:${tier}`, hit = pickCache.get(cacheKey);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.models;
   let models = b.fallback || [];
@@ -199,7 +200,7 @@ export default async function handler(req) {
   if (req.method !== "POST") return json(405, { error: "Use POST." });
 
   const body = await req.json().catch(() => ({}));
-  const mode = MODES[body.mode] ? body.mode : "teach";
+  const mode = MODES[body.mode] ? body.mode : "chat";
   const level = LEVELS.includes(body.level) ? body.level : "High school";
   const subject = String(body.subject || "").slice(0, 80);
   const site = body.site && /^[\w.-]+\/[\w.-]+$/.test(String(body.site.repo || ""))
@@ -226,10 +227,12 @@ export default async function handler(req) {
   if (!brains.length && OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });
   if (!brains.length && !FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
-  const hard = mode === "code" || mode === "site";
+  // How big a brain the student asked for: Haiku (light), Sonnet (standard) or Ultra (heavy). Code is always heavy.
+  const tier = body.voice ? "light" : mode === "code" || mode === "site" ? "heavy" : { light: "light", standard: "standard", heavy: "heavy" }[body.tier] || "standard";
+  const hard = mode === "code" || mode === "site" || tier === "heavy";
   const stop = new AbortController();
   req.signal?.addEventListener("abort", () => stop.abort());
-  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : 1500;
+  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "heavy" ? 4000 : tier === "light" ? 800 : 1500;
   // A route is one model at one provider. Connected providers choose their own answer length.
   const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
@@ -248,7 +251,6 @@ export default async function handler(req) {
       try {
         // Routes to try, in order: the providers this person connected, then Max's default AI.
         const routes = [];
-        const tier = body.voice ? "light" : hard ? "heavy" : "standard";
         // Models that can think (gpt-oss) are told how hard to: a little for easy things, the most for code and websites.
         const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", heavy: "high" }[tier] : undefined);
         for (const b of brains) for (const model of await brainModels(b, tier)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b, effort: effort(model) });
