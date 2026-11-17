@@ -114,6 +114,18 @@ const STRONG = [/gpt-5(?!.*(nano|mini|chat))/i, /claude.*(opus|sonnet)/i, /gemin
 const QUICK = [/gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
 const pickCache = new Map();
 
+// Providers the owner switched on for everybody, with a key saved in Vercel's Environment Variables
+// (AIMLAPI_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY). An optional
+// <NAME>_MODEL variable (for example AIMLAPI_MODEL) picks a model; otherwise Max picks the strongest.
+const SHARED = { aimlapi: "AIMLAPI", gemini: "GEMINI_API", openrouter: "OPENROUTER_API", groq: "GROQ_API", mistral: "MISTRAL_API" };
+function sharedBrains() {
+  const out = [];
+  for (const [id, name] of Object.entries(SHARED)) {
+    const key = (process.env[name + "_KEY"] || "").trim();
+    if (key) out.push({ ...PRESETS[id], id, key, model: (process.env[name + "_MODEL"] || "").trim() });
+  }
+  return out;
+}
 function readBrains(body) { // -> { brains } or { error }
   const list = Array.isArray(body.brains) ? body.brains.slice(0, 4) : [];
   if (body.brain && typeof body.brain.url === "string" && body.brain.url.trim()) list.unshift({ id: "custom", ...body.brain });
@@ -196,7 +208,8 @@ export default async function handler(req) {
 
   const read = readBrains(body);
   if (read.error) return json(400, { error: read.error });
-  const brains = read.brains;
+  // The person's own providers first, then the ones the owner saved for everybody.
+  const brains = [...read.brains, ...(body.test ? [] : sharedBrains().filter((e) => !read.brains.some((b) => b.id === e.id)))].slice(0, 6);
   if (body.test && !brains.length) return json(400, { error: "Enter a key first." });
   const token = FREE ? "" : OWN ? process.env.MAX_AI_KEY || "" : CF ? process.env.CF_API_TOKEN : process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN || "";
   if (!brains.length && OWN && !MODELS.length) return json(500, { error: "Max's own AI is half set up: add MAX_MODEL in Vercel with the model name to use." });

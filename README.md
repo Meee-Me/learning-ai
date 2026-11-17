@@ -79,6 +79,12 @@ and falls back to the next (and finally the free AI) when one is busy or out of 
 Each row has a **Test** button. Max picks the strongest model each provider offers; a model name can
 be typed to override. Keys are kept in that browser only.
 
+**For everyone, set up once (recommended):** the owner adds a key in Vercel → learning-ai → Settings →
+Environment Variables, then Redeploy. Name it `AIMLAPI_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`,
+`GROQ_API_KEY` or `MISTRAL_API_KEY`. Max then uses that provider for everybody, with no setup on their
+side. Optional `AIMLAPI_MODEL` (and so on) picks one model. Everybody's questions are paid by that key,
+so set a spending limit on the provider's account.
+
 To set one provider for everyone who uses this copy of Max, use Vercel's Environment Variables:
 `MAX_AI_URL` (address ending in `/v1`), `MAX_AI_KEY`, and `MAX_MODEL` (one or more, comma-separated).
 
