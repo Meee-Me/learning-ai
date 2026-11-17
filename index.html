@@ -1484,6 +1484,7 @@ const PROVIDERS = [
   { id: "github", name: "GitHub Models", about: "Uses the GitHub account you connected in Connect a website. Nothing to paste. Small questions only on the free plan.", noKey: true },
   { id: "openrouter", name: "OpenRouter", about: "Many free models behind one free key, no card.", link: "https://openrouter.ai/keys" },
   { id: "groq", name: "Groq", about: "Very fast open models. Free key, no card.", link: "https://console.groq.com/keys" },
+  { id: "anthropic", name: "Claude (Anthropic)", about: "The strongest option, and the one I run on. Needs an Anthropic API key with credit added; a Claude chat subscription doesn't include one.", link: "https://console.anthropic.com/settings/keys" },
   { id: "aimlapi", name: "AI/ML API", about: "Many strong models (GPT, Claude, Gemini and more) behind one key. It may need funds added to the account.", link: "https://aimlapi.com/app/keys" },
   { id: "mistral", name: "Mistral", about: "Free plan after a phone check.", link: "https://console.mistral.ai/api-keys" },
   { id: "custom", name: "Your own router (OmniRoute and others)", about: "A server you run that speaks the OpenAI chat format. It needs a public https address.", custom: true },
@@ -1492,7 +1493,7 @@ let brains = store.get("max.brains", {});
 { const old = store.get("max.brain", null); if (old?.kind === "own" && old.url && !brains.custom) { brains.custom = { url: old.url, key: old.key, model: old.model }; store.set("max.brains", brains); } }
 function brainList() { // what to send with a question, strongest first
   const out = [];
-  for (const id of ["custom", "aimlapi", "gemini", "github", "openrouter", "groq", "mistral"]) {
+  for (const id of ["custom", "anthropic", "aimlapi", "gemini", "github", "openrouter", "groq", "mistral"]) {
     const c = brains[id]; if (!c) continue;
     if (id === "github") { if (c.on && site?.token) out.push({ id, key: site.token, model: c.model || "" }); }
     else if (id === "custom") { if (c.url) out.push({ id, url: c.url, key: c.key || "", model: c.model || "auto" }); }

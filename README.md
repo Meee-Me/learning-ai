@@ -80,7 +80,7 @@ Each row has a **Test** button. Max picks the strongest model each provider offe
 be typed to override. Keys are kept in that browser only.
 
 **For everyone, set up once (recommended):** the owner adds a key in Vercel → learning-ai → Settings →
-Environment Variables, then Redeploy. Name it `AIMLAPI_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`,
+Environment Variables, then Redeploy. Name it `ANTHROPIC_API_KEY` (Claude; Max uses Sonnet 5.5 for code and website edits and Haiku 5.5 for chat), `AIMLAPI_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`,
 `GROQ_API_KEY` or `MISTRAL_API_KEY`. Max then uses that provider for everybody, with no setup on their
 side. Optional `AIMLAPI_MODEL` (and so on) picks one model. Everybody's questions are paid by that key,
 so set a spending limit on the provider's account.

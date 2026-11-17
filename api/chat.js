@@ -101,6 +101,7 @@ async function freeModels(hard) {
 /* Max's built-in router. People connect AI providers in Max's settings (a free key each, or their
    connected GitHub account); every question is tried on those, strongest first, then on the free AI. */
 const PRESETS = {
+  anthropic: { name: "Claude", url: "https://api.anthropic.com/v1", fixed: true, needMax: true, hard: ["claude-sonnet-5-5", "claude-haiku-5-5"], quick: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
   gemini: { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai", fallback: ["gemini-2.5-flash"] },
   github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
   openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
@@ -117,7 +118,7 @@ const pickCache = new Map();
 // Providers the owner switched on for everybody, with a key saved in Vercel's Environment Variables
 // (AIMLAPI_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY). An optional
 // <NAME>_MODEL variable (for example AIMLAPI_MODEL) picks a model; otherwise Max picks the strongest.
-const SHARED = { aimlapi: "AIMLAPI", gemini: "GEMINI_API", openrouter: "OPENROUTER_API", groq: "GROQ_API", mistral: "MISTRAL_API" };
+const SHARED = { anthropic: "ANTHROPIC_API", aimlapi: "AIMLAPI", gemini: "GEMINI_API", openrouter: "OPENROUTER_API", groq: "GROQ_API", mistral: "MISTRAL_API" };
 function sharedBrains() {
   const out = [];
   for (const [id, name] of Object.entries(SHARED)) {
@@ -145,6 +146,7 @@ function readBrains(body) { // -> { brains } or { error }
 // Which of a provider's models to try: the person's choice, or the strongest ones its model list offers.
 async function brainModels(b, hard) {
   if (b.model) return b.model.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
+  if (b.fixed) return hard ? b.hard : b.quick; // this provider's models are known, so no lookup
   const cacheKey = `${b.id}:${b.key.slice(-8)}:${hard}`, hit = pickCache.get(cacheKey);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.models;
   let models = b.fallback || [];
@@ -223,7 +225,7 @@ export default async function handler(req) {
   const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
     headers: { ...(rt.token ? { Authorization: `Bearer ${rt.token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.own ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.own && !rt.own.needMax ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + (body.voice ? VOICE : "") }, ...messages] }),
   });
 
   // The answer is sent as plain text. Notes for the page (which model, errors, keep-alive pings) travel
