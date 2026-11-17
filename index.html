@@ -342,6 +342,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
           <div class="modes" role="group" aria-label="How Max helps">
             <button type="button" data-mode="haiku" aria-pressed="false" title="Fastest. Quick answers.">Haiku</button>
             <button type="button" data-mode="sonnet" aria-pressed="true" title="Balanced. Good for most questions.">Sonnet</button>
+            <button type="button" data-mode="opus" aria-pressed="false" title="Stronger. A bigger model that thinks a fair bit.">Opus</button>
             <button type="button" data-mode="ultra" aria-pressed="false" title="Smartest. Thinks hardest, so it is slower.">Ultra</button>
             <button type="button" data-mode="code" aria-pressed="false" title="Writes code, and edits your website when one is connected.">Code</button>
           </div>
@@ -515,10 +516,11 @@ const MAX_FILE_MB = 25;
 const MODES = {
   haiku:  { label: "Haiku" },
   sonnet: { label: "Sonnet" },
+  opus:   { label: "Opus" },
   ultra:  { label: "Ultra" },
   code:   { label: "Code" },
 };
-const TIERS = { haiku: "light", sonnet: "standard", ultra: "heavy", code: "heavy" };
+const TIERS = { haiku: "light", sonnet: "standard", opus: "high", ultra: "heavy", code: "heavy" };
 
 const $ = (id) => document.getElementById(id);
 const shell = $("shell"), thread = $("thread"), welcome = $("welcome"), input = $("input"), sendBtn = $("send");
@@ -531,7 +533,7 @@ const store = {
 };
 let chats = store.get("max.chats", []);
 let prefs = store.get("max.prefs", { level: "High school", subject: "", mode: "sonnet", collapsed: false });
-{ const old = { teach: "sonnet", quiz: "sonnet", hint: "sonnet", site: "code" }[prefs.mode]; if (old) prefs.mode = old; if (!(prefs.mode in { haiku: 1, sonnet: 1, ultra: 1, code: 1 })) prefs.mode = "sonnet"; }
+{ const old = { teach: "sonnet", quiz: "sonnet", hint: "sonnet", site: "code" }[prefs.mode]; if (old) prefs.mode = old; if (!(prefs.mode in { haiku: 1, sonnet: 1, opus: 1, ultra: 1, code: 1 })) prefs.mode = "sonnet"; }
 let current = null;      // the open chat object
 let pending = [];        // files waiting to send: {id,name,size,kind,text,thumb,status}
 let busy = false, ctl = null;
@@ -1502,7 +1504,7 @@ function setMode(m) {
   renderSite();
 }
 document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
-$("modeTag").title = "Tap to switch: Haiku, Sonnet, Ultra, Code";
+$("modeTag").title = "Tap to switch: Haiku, Sonnet, Opus, Ultra, Code";
 $("modeTag").style.cursor = "pointer";
 $("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
 

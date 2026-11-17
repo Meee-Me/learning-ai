@@ -85,10 +85,11 @@ const VOICE = "\nThis turn is a SPOKEN conversation: your reply will be read alo
 
 // The free service lists its models; pick the strongest ones it offers without an account.
 const WANT_HARD = ["openai-large", "qwen-coder", "deepseek", "mistral", "openai"];
+const WANT_HIGH = ["openai", "openai-large"];
 const WANT_EASY = ["openai-fast", "openai"];
 let modelCache = { at: 0, names: null };
-async function freeModels(hard) {
-  const want = hard ? WANT_HARD : WANT_EASY;
+async function freeModels(hard, tier) {
+  const want = hard ? WANT_HARD : tier === "high" ? WANT_HIGH : WANT_EASY;
   if (Date.now() - modelCache.at > 10 * 60 * 1000) {
     modelCache.at = Date.now();
     try {
@@ -107,7 +108,7 @@ async function freeModels(hard) {
 /* Max's built-in router. People connect AI providers in Max's settings (a free key each, or their
    connected GitHub account); every question is tried on those, strongest first, then on the free AI. */
 const PRESETS = {
-  anthropic: { name: "Claude", url: "https://api.anthropic.com/v1", fixed: true, needMax: true, hard: ["claude-opus-5-5", "claude-sonnet-5-5"], mid: ["claude-sonnet-5-5", "claude-haiku-5-5"], quick: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
+  anthropic: { name: "Claude", url: "https://api.anthropic.com/v1", fixed: true, needMax: true, hard: ["claude-fable-5-2", "claude-opus-5-5"], high: ["claude-opus-5-5", "claude-sonnet-5-5"], mid: ["claude-sonnet-5-5", "claude-haiku-5-5"], quick: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
   gemini: { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai", fallback: ["gemini-2.5-flash"] },
   github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
   openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
@@ -121,6 +122,8 @@ const STRONG = [/gpt-5(?!.*(nano|mini|chat))/i, /claude.*(opus|sonnet)/i, /gemin
 // Three tiers, like Haiku / Sonnet / Opus: small and fast models answer easy things (voice, short chat),
 // mid models teach and quiz, and the biggest ones with the most thinking write code and edit websites.
 const LIGHT = [/haiku/i, /llama-3\.1-8b/i, /flash-lite/i, /gpt-.*nano/i, /gpt-.*mini|gpt-4o-mini/i, /gpt-oss-20b/i, /gemini-[\d.]+-flash(?!-lite)/i, /mistral-small/i, /llama-3\.3-70b/i];
+// Between Sonnet and Ultra: strong, but not the very top models.
+const HIGH = [/gpt-oss-120b/i, /gpt-4\.1$/i, /gemini-[\d.]+-flash(?!-lite)/i, /qwen.*(coder|32b|max)/i, /mistral-large|codestral/i, /deepseek.*(v3|chat)/i, /llama-3\.3-70b/i, /gpt-4o$/i, /kimi-k2/i];
 const QUICK = [/gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
 const pickCache = new Map();
 
@@ -156,7 +159,7 @@ function readBrains(body) { // -> { brains } or { error }
 async function brainModels(b, tier) {
   const hard = tier === "heavy";
   if (b.model) return b.model.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
-  if (b.fixed) return hard ? b.hard : tier === "standard" && b.mid ? b.mid : b.quick; // this provider's models are known, so no lookup
+  if (b.fixed) return b[{ heavy: "hard", high: "high", standard: "mid", light: "quick" }[tier]] || b.quick; // this provider's models are known, so no lookup
   const cacheKey = `${b.id}:${b.key.slice(-8)}:${tier}`, hit = pickCache.get(cacheKey);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.models;
   let models = b.fallback || [];
@@ -164,7 +167,7 @@ async function brainModels(b, tier) {
     const r = await fetch(b.list || b.url + "/models", { headers: { Authorization: `Bearer ${b.key}` }, signal: AbortSignal.timeout(4000) });
     const j = await r.json();
     const ids = (Array.isArray(j) ? j : j.data || j.models || []).filter((x) => !x.type || /chat|text|language|llm/i.test(String(x.type))).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
-    const want = tier === "heavy" ? STRONG : tier === "light" ? [...LIGHT, ...QUICK] : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
+    const want = tier === "heavy" ? STRONG : tier === "high" ? [...HIGH, ...STRONG] : tier === "light" ? [...LIGHT, ...QUICK] : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
     const sorted = ids.map((id) => [rank(id), id]).filter(([n]) => n < 999).sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? 1 : -1)).map(([, id]) => id);
     const picked = [...new Set(sorted)].slice(0, b.many || 3);
     if (picked.length) models = picked; else if (ids.length && !models.length) models = ids.slice(0, 2);
@@ -228,11 +231,11 @@ export default async function handler(req) {
   if (!brains.length && !FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
   // How big a brain the student asked for: Haiku (light), Sonnet (standard) or Ultra (heavy). Code is always heavy.
-  const tier = body.voice ? "light" : mode === "code" || mode === "site" ? "heavy" : { light: "light", standard: "standard", heavy: "heavy" }[body.tier] || "standard";
+  const tier = body.voice ? "light" : mode === "code" || mode === "site" ? "heavy" : { light: "light", standard: "standard", high: "high", heavy: "heavy" }[body.tier] || "standard";
   const hard = mode === "code" || mode === "site" || tier === "heavy";
   const stop = new AbortController();
   req.signal?.addEventListener("abort", () => stop.abort());
-  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "heavy" ? 4000 : tier === "light" ? 800 : 1500;
+  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "heavy" ? 4000 : tier === "high" ? 2500 : tier === "light" ? 800 : 1500;
   // A route is one model at one provider. Connected providers choose their own answer length.
   const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
@@ -252,13 +255,13 @@ export default async function handler(req) {
         // Routes to try, in order: the providers this person connected, then Max's default AI.
         const routes = [];
         // Models that can think (gpt-oss) are told how hard to: a little for easy things, the most for code and websites.
-        const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", heavy: "high" }[tier] : undefined);
+        const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", high: "medium", heavy: "high" }[tier] : undefined);
         for (const b of brains) for (const model of await brainModels(b, tier)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b, effort: effort(model) });
         if (!body.test) {
           let tries = [MODEL];
           if (MODELS.length) tries = MODELS.slice(0, 4);
           else if (GATEWAY) tries = hard ? ["anthropic/claude-sonnet-5.5", MODEL] : [MODEL];
-          else if (FREE) tries = await freeModels(hard);
+          else if (FREE) tries = await freeModels(hard, tier);
           for (const model of tries) routes.push({ url: URL_, token, model, label: model, own: null });
         }
         // Some models think silently first and can use up all their room before writing anything.

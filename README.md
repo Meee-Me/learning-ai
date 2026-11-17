@@ -1,7 +1,7 @@
 # Max — AI tutor
 
 Max is a friendly AI tutor. Pick a level, then pick how hard he thinks with the buttons on the welcome screen or by tapping the
-mode name in the message box: **Haiku** (fastest), **Sonnet** (balanced), **Ultra** (smartest, slowest)
+mode name in the message box: **Haiku** (fastest), **Sonnet** (balanced), **Opus** (stronger), **Ultra** (smartest, slowest)
 and **Code** (writes code, and edits the connected website). Ask for a style in plain words: "teach
 me", "quiz me" or "hints only".
 
