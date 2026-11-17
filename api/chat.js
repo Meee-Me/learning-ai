@@ -110,13 +110,16 @@ const PRESETS = {
   gemini: { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai", fallback: ["gemini-2.5-flash"] },
   github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
   openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
-  groq: { name: "Groq", url: "https://api.groq.com/openai/v1", fallback: ["llama-3.3-70b-versatile"] },
+  groq: { name: "Groq", url: "https://api.groq.com/openai/v1", many: 5, fallback: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"] },
   aimlapi: { name: "AI/ML API", url: "https://api.aimlapi.com/v1", fallback: ["gpt-4o"] },
   mistral: { name: "Mistral", url: "https://api.mistral.ai/v1", fallback: ["mistral-large-latest"] },
 };
 const NOT_CHAT = /embed|whisper|tts|guard|image|rerank|moderation|audio|dall|imagen|veo|aqa|learnlm|live|native|robotics|computer-use|transcribe|realtime|ocr|speech/i;
 const STRONG = [/gpt-5(?!.*(nano|mini|chat))/i, /claude.*(opus|sonnet)/i, /gemini-[\d.]+-pro/i, /gpt-4\.1$/i, /kimi-k2/i, /qwen.*coder/i, /deepseek.*(v3|chat|r1)/i, /gpt-oss-120b/i,
   /gemini-[\d.]+-flash(?!-lite)/i, /llama-3\.3-70b/i, /mistral-large/i, /codestral/i, /gpt-4o$/i, /gpt-4\.1-mini|gpt-5-mini/i];
+// Three tiers, like Haiku / Sonnet / Opus: small and fast models answer easy things (voice, short chat),
+// mid models teach and quiz, and the biggest ones with the most thinking write code and edit websites.
+const LIGHT = [/haiku/i, /llama-3\.1-8b/i, /flash-lite/i, /gpt-.*nano/i, /gpt-.*mini|gpt-4o-mini/i, /gpt-oss-20b/i, /gemini-[\d.]+-flash(?!-lite)/i, /mistral-small/i, /llama-3\.3-70b/i];
 const QUICK = [/gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
 const pickCache = new Map();
 
@@ -149,19 +152,20 @@ function readBrains(body) { // -> { brains } or { error }
   return { brains: brains.slice(0, 4) };
 }
 // Which of a provider's models to try: the person's choice, or the strongest ones its model list offers.
-async function brainModels(b, hard) {
+async function brainModels(b, tier) {
+  const hard = tier === "heavy";
   if (b.model) return b.model.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
   if (b.fixed) return hard ? b.hard : b.quick; // this provider's models are known, so no lookup
-  const cacheKey = `${b.id}:${b.key.slice(-8)}:${hard}`, hit = pickCache.get(cacheKey);
+  const cacheKey = `${b.id}:${b.key.slice(-8)}:${tier}`, hit = pickCache.get(cacheKey);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.models;
   let models = b.fallback || [];
   try {
     const r = await fetch(b.list || b.url + "/models", { headers: { Authorization: `Bearer ${b.key}` }, signal: AbortSignal.timeout(4000) });
     const j = await r.json();
     const ids = (Array.isArray(j) ? j : j.data || j.models || []).filter((x) => !x.type || /chat|text|language|llm/i.test(String(x.type))).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
-    const want = hard ? STRONG : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
+    const want = tier === "heavy" ? STRONG : tier === "light" ? [...LIGHT, ...QUICK] : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
     const sorted = ids.map((id) => [rank(id), id]).filter(([n]) => n < 999).sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? 1 : -1)).map(([, id]) => id);
-    const picked = [...new Set(sorted)].slice(0, 3);
+    const picked = [...new Set(sorted)].slice(0, b.many || 3);
     if (picked.length) models = picked; else if (ids.length && !models.length) models = ids.slice(0, 2);
   } catch {}
   pickCache.set(cacheKey, { at: Date.now(), models });
@@ -230,7 +234,7 @@ export default async function handler(req) {
   const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
     headers: { ...(rt.token ? { Authorization: `Bearer ${rt.token}` } : {}), "Content-Type": "application/json" },
-    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.own && !rt.own.needMax ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + ABOUT + (body.voice ? VOICE : "") }, ...messages] }),
+    body: JSON.stringify({ model: rt.model, stream: true, ...(rt.effort ? { reasoning_effort: rt.effort } : {}), ...(rt.own && !rt.own.needMax ? (body.voice ? { max_tokens: 300 } : {}) : { max_tokens: room }), ...extra, messages: [{ role: "system", content: system(subject, level, mode, site) + ABOUT + (body.voice ? VOICE : "") }, ...messages] }),
   });
 
   // The answer is sent as plain text. Notes for the page (which model, errors, keep-alive pings) travel
@@ -244,7 +248,10 @@ export default async function handler(req) {
       try {
         // Routes to try, in order: the providers this person connected, then Max's default AI.
         const routes = [];
-        for (const b of brains) for (const model of await brainModels(b, hard)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b });
+        const tier = body.voice ? "light" : hard ? "heavy" : "standard";
+        // Models that can think (gpt-oss) are told how hard to: a little for easy things, the most for code and websites.
+        const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", heavy: "high" }[tier] : undefined);
+        for (const b of brains) for (const model of await brainModels(b, tier)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b, effort: effort(model) });
         if (!body.test) {
           let tries = [MODEL];
           if (MODELS.length) tries = MODELS.slice(0, 4);
@@ -261,6 +268,8 @@ export default async function handler(req) {
           if (retry && skipRetries !== rt) continue; // retries only follow an empty, thought-out answer
           let up;
           try { up = await ask(rt, extra); } catch (e) { if (stop.signal.aborted) return; lastError = mine ? `Max's server couldn't reach ${mine.name}. Check that it is set up right and running.` : "Max's server couldn't reach his AI. Try again."; continue; }
+          // A provider that doesn't know the thinking setting says so with a 400. Ask again without it.
+          if (!up.ok && up.status === 400 && rt.effort) { try { up = await ask({ ...rt, effort: undefined }, extra); } catch { continue; } }
           if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => ""), mine); continue; }
           note({ model: model.replace(/[^\w./@: ·-]/g, "") });
           const reader = up.body.getReader(), dec = new TextDecoder();

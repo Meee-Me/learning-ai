@@ -86,6 +86,11 @@ and falls back to the next (and finally the free AI) when one is busy or out of 
 - **GitHub Models**: uses the GitHub account connected under Connect a website.
 - **Your own router**: an OmniRoute or other OpenAI-compatible server with a public https address.
 
+Max also sizes the model to the job, like Haiku / Sonnet / Opus: small fast models answer voice and
+short chat, mid models teach and quiz, and the biggest models answer code and website edits, with
+reasoning models (gpt-oss) told to think harder for those. Groq's free limits are per model, so on
+Groq he keeps up to five models in line and moves down the list when one is busy.
+
 Each row has a **Test** button. Max picks the strongest model each provider offers; a model name can
 be typed to override. Keys are kept in that browser only.
 
