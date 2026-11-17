@@ -105,6 +105,7 @@ const PRESETS = {
   github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
   openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
   groq: { name: "Groq", url: "https://api.groq.com/openai/v1", fallback: ["llama-3.3-70b-versatile"] },
+  aimlapi: { name: "AI/ML API", url: "https://api.aimlapi.com/v1", fallback: ["gpt-4o"] },
   mistral: { name: "Mistral", url: "https://api.mistral.ai/v1", fallback: ["mistral-large-latest"] },
 };
 const NOT_CHAT = /embed|whisper|tts|guard|image|rerank|moderation|audio|dall|imagen|veo|aqa|learnlm|live|native|robotics|computer-use|transcribe|realtime|ocr|speech/i;
@@ -138,7 +139,7 @@ async function brainModels(b, hard) {
   try {
     const r = await fetch(b.list || b.url + "/models", { headers: { Authorization: `Bearer ${b.key}` }, signal: AbortSignal.timeout(4000) });
     const j = await r.json();
-    const ids = (Array.isArray(j) ? j : j.data || j.models || []).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
+    const ids = (Array.isArray(j) ? j : j.data || j.models || []).filter((x) => !x.type || /chat|text|language|llm/i.test(String(x.type))).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
     const want = hard ? STRONG : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
     const sorted = ids.map((id) => [rank(id), id]).filter(([n]) => n < 999).sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? 1 : -1)).map(([, id]) => id);
     const picked = [...new Set(sorted)].slice(0, 3);
