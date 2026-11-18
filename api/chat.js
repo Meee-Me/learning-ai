@@ -121,7 +121,7 @@ const STRONG = [/gpt-5(?!.*(nano|mini|chat))/i, /claude.*(opus|sonnet)/i, /gemin
   /gemini-[\d.]+-flash(?!-lite)/i, /llama-3\.3-70b/i, /mistral-large/i, /codestral/i, /gpt-4o$/i, /gpt-4\.1-mini|gpt-5-mini/i];
 // Three tiers, like Haiku / Sonnet / Opus: small and fast models answer easy things (voice, short chat),
 // mid models teach and quiz, and the biggest ones with the most thinking write code and edit websites.
-const LIGHT = [/haiku/i, /llama-3\.1-8b/i, /flash-lite/i, /gpt-.*nano/i, /gpt-.*mini|gpt-4o-mini/i, /gpt-oss-20b/i, /gemini-[\d.]+-flash(?!-lite)/i, /mistral-small/i, /llama-3\.3-70b/i];
+const LIGHT = [/haiku/i, /llama-3\.1-8b/i, /ministral-[38]b/i, /mistral-nemo/i, /flash-lite/i, /gpt-.*nano/i, /gpt-.*mini|gpt-4o-mini/i, /gpt-oss-20b/i, /gemini-[\d.]+-flash(?!-lite)/i, /mistral-small/i, /llama-3\.3-70b/i];
 // Between Sonnet and Ultra: strong, but not the very top models.
 const HIGH = [/claude.*opus/i, /gpt-oss-120b/i, /gpt-4\.1$/i, /gemini-[\d.]+-flash(?!-lite)/i, /qwen.*(coder|32b|max)/i, /mistral-large|codestral/i, /deepseek.*(v3|chat)/i, /llama-3\.3-70b/i, /gpt-4o$/i, /kimi-k2/i];
 // Codex: the very best models for code, ahead of everything else.
@@ -238,12 +238,13 @@ export default async function handler(req) {
   // How big a brain the student asked for: Haiku (light), Sonnet (standard) or Ultra (heavy). Code is always heavy.
   const tier = body.voice ? "light" : mode === "code" || mode === "site" ? (body.tier === "best" ? "best" : "heavy") : { light: "light", standard: "standard", high: "high", heavy: "heavy" }[body.tier] || "standard";
   const hard = mode === "code" || mode === "site" || tier === "heavy" || tier === "best";
-  // Which provider answers first for each size. AI/ML API runs Haiku, Sonnet, Opus and Codex; Groq runs Ultra
-  // and Code. Anything else you connected (and the free AI) follows as a backup, in that order.
-  const prefer = { light: "aimlapi", standard: "aimlapi", high: "aimlapi", heavy: "groq", best: "aimlapi" }[tier];
-  brains.sort((x, y) => (x.id === "custom" ? 0 : x.id === prefer ? 1 : 2) - (y.id === "custom" ? 0 : y.id === prefer ? 1 : 2));
-  const stop = new AbortController();
-  req.signal?.addEventListener("abort", () => stop.abort());
+  // Which provider answers first for each size. AI/ML API (when it has credit) or else Mistral runs Haiku, Sonnet,
+  // Opus and Codex, and Groq runs Ultra and Code. Anything else you connected, and finally the free AI, follows as a
+  // backup. A provider that isn't connected, or has no credit, is simply skipped.
+  const lower = ["aimlapi", "mistral", "openrouter"];
+  const prefer = { light: lower, standard: lower, high: lower, heavy: ["groq"], best: ["aimlapi", "openrouter", "mistral"] }[tier];
+  const rankOf = (b) => (b.id === "custom" ? 0 : prefer.includes(b.id) ? 1 + prefer.indexOf(b.id) : 9);
+  brains.sort((x, y) => rankOf(x) - rankOf(y));
   const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "best" ? 6000 : tier === "heavy" ? 4000 : tier === "high" ? 2500 : tier === "light" ? 800 : 1500;
   // A route is one model at one provider. Connected providers choose their own answer length.
   const ask = (rt, extra = {}) => fetch(rt.url, {

@@ -7,10 +7,11 @@ me", "quiz me" or "hints only".
 
 ### Which provider runs which mode
 
-By default **AI/ML API** answers Haiku, Sonnet, Opus and Codex, and **Groq** answers Ultra and Code.
+By default **AI/ML API** (or **Mistral** when AI/ML API has no credit or isn't connected, then OpenRouter)
+answers Haiku, Sonnet, Opus and Codex, and **Groq** answers Ultra and Code.
 Whatever else is connected, and finally the free AI, follows as a backup if the first choice is busy
 or out of credit. A provider that isn't connected is simply skipped. Keys are saved in Vercel as
-`AIMLAPI_KEY` and `GROQ_API_KEY`. The preferences live in `prefer` in `api/chat.js`.
+`AIMLAPI_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` and `GROQ_API_KEY`. The preferences live in `prefer` in `api/chat.js`.
 
 ## Features
 
