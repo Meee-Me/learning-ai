@@ -128,6 +128,9 @@ const HIGH = [/claude.*opus/i, /gpt-oss-120b/i, /gpt-4\.1$/i, /gemini-[\d.]+-fla
 const BEST = [/codex/i, /gpt-5(?!.*(nano|mini|chat))/i, /claude.*opus/i, /gemini-[\d.]+-pro/i, ...STRONG];
 const QUICK = [/claude.*sonnet/i, /gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
 const pickCache = new Map();
+const badModels = new Map(); // provider|model -> when it answered 404 (gone or no longer free); left out for a while
+const BAD_MODEL_MS = 10 * 60 * 1000;
+const isBad = (provider, model) => { const at = badModels.get(provider + "|" + model); return !!at && Date.now() - at < BAD_MODEL_MS; };
 const noCredit = new Map(); // provider+key -> { at, msg }: refused the key or out of credit; skipped for a few minutes
 const NO_CREDIT_MS = 3 * 60 * 1000;
 
@@ -170,7 +173,7 @@ async function brainModels(b, tier) {
   try {
     const r = await fetch(b.list || b.url + "/models", { headers: { Authorization: `Bearer ${b.key}` }, signal: AbortSignal.timeout(4000) });
     const j = await r.json();
-    const ids = (Array.isArray(j) ? j : j.data || j.models || []).filter((x) => !x.type || /chat|text|language|llm/i.test(String(x.type))).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
+    const ids = (Array.isArray(j) ? j : j.data || j.models || []).filter((x) => !x.type || /chat|text|language|llm/i.test(String(x.type))).filter((x) => !b.only || !x.pricing || (Number(x.pricing.prompt) === 0 && Number(x.pricing.completion) === 0)).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)) && !isBad(b.id, id));
     const want = tier === "best" ? BEST : tier === "heavy" ? STRONG : tier === "high" ? [...HIGH, ...STRONG] : tier === "light" ? [...LIGHT, ...QUICK] : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
     const sorted = ids.map((id) => [rank(id), id]).filter(([n]) => n < 999).sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? 1 : -1)).map(([, id]) => id);
     const picked = [...new Set(sorted)].slice(0, b.many || 3);
@@ -189,7 +192,7 @@ function explain(status, detail, mine) {
   try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
   if (mine) return (status === 402 || /credit|fund|balance|billing|payment/i.test(reason) ? `${mine.name} has no credit left. Add funds on its website.`
     : status === 401 || status === 403 ? `${mine.name} refused the key. Check it in Max's settings.`
-    : status === 404 ? `${mine.name} doesn't know that address or model. Check them in Max's settings.`
+    : status === 404 ? (mine.id === "custom" ? `${mine.name} doesn't know that address or model. Check them in Max's settings.` : `${mine.name} doesn't have that model right now.`)
     : status === 429 ? `${mine.name} says it is busy or out of free use for now.`
     : `${mine.name} didn't answer properly.`) + (reason ? ` (it said: ${reason.slice(0, 200)})` : ` (error ${status})`);
   const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
@@ -293,6 +296,7 @@ export default async function handler(req) {
           // A provider that doesn't know the thinking setting says so with a 400. Ask again without it.
           if (!up.ok && up.status === 400 && rt.effort) { try { up = await ask({ ...rt, effort: undefined }, extra); } catch { continue; } }
           if (!up.ok && rt.own && [401, 402, 403].includes(up.status)) dead.add(rt.own.id);
+          if (!up.ok && rt.own && [404, 410].includes(up.status)) { badModels.set(rt.own.id + "|" + rt.model, Date.now()); for (const k of [...pickCache.keys()]) if (k.startsWith(rt.own.id + ":")) pickCache.delete(k); }
           if (!up.ok || !up.body) {
             if (!retry) { lastError = explain(up.status, await up.text().catch(() => ""), mine); if (mine && !failed.has(mine.id)) failed.set(mine.id, lastError); if (mine && [401, 402, 403].includes(up.status)) noCredit.set(keyOf(mine), { at: Date.now(), msg: lastError }); }
             continue;
