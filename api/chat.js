@@ -128,6 +128,8 @@ const HIGH = [/claude.*opus/i, /gpt-oss-120b/i, /gpt-4\.1$/i, /gemini-[\d.]+-fla
 const BEST = [/codex/i, /gpt-5(?!.*(nano|mini|chat))/i, /claude.*opus/i, /gemini-[\d.]+-pro/i, ...STRONG];
 const QUICK = [/claude.*sonnet/i, /gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
 const pickCache = new Map();
+const noCredit = new Map(); // provider+key -> { at, msg }: refused the key or out of credit; skipped for a few minutes
+const NO_CREDIT_MS = 3 * 60 * 1000;
 
 // Providers the owner switched on for everybody, with a key saved in Vercel's Environment Variables
 // (AIMLAPI_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY). An optional
@@ -185,9 +187,9 @@ export const config = { runtime: "edge" };
 function explain(status, detail, mine) {
   let reason = "";
   try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
-  if (mine) return (status === 401 || status === 403 ? `${mine.name} refused the key. Check it in Max's settings.`
+  if (mine) return (status === 402 || /credit|fund|balance|billing|payment/i.test(reason) ? `${mine.name} has no credit left. Add funds on its website.`
+    : status === 401 || status === 403 ? `${mine.name} refused the key. Check it in Max's settings.`
     : status === 404 ? `${mine.name} doesn't know that address or model. Check them in Max's settings.`
-    : status === 402 || /credit|fund|balance|billing|payment/i.test(reason) ? `${mine.name} has no credit left. Add funds on its website.`
     : status === 429 ? `${mine.name} says it is busy or out of free use for now.`
     : `${mine.name} didn't answer properly.`) + (reason ? ` (it said: ${reason.slice(0, 200)})` : ` (error ${status})`);
   const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
@@ -263,7 +265,9 @@ export default async function handler(req) {
         const routes = [];
         // Models that can think (gpt-oss) are told how hard to: a little for easy things, the most for code and websites.
         const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", high: "medium", heavy: "high", best: "high" }[tier] : undefined);
-        for (const b of brains) for (const model of await brainModels(b, tier)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b, effort: effort(model) });
+        const skipNow = new Map(), keyOf = (b) => b.id + b.key.slice(-6);
+        const live = brains.filter((b) => { const hit = noCredit.get(keyOf(b)); if (hit && Date.now() - hit.at < NO_CREDIT_MS) { skipNow.set(b.id, hit.msg); return false; } return true; });
+        for (const b of live) for (const model of await brainModels(b, tier)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b, effort: effort(model) });
         if (!body.test) {
           let tries = [MODEL];
           if (MODELS.length) tries = MODELS.slice(0, 4);
@@ -275,7 +279,7 @@ export default async function handler(req) {
         // When that happens on the default AI, ask the same model again with less thinking and more room.
         const plan = routes.flatMap((rt) => rt.own ? [[rt, {}]] : [[rt, {}], [rt, { reasoning_effort: "low", max_tokens: Math.max(room * 2, 8000) }], [rt, { max_tokens: Math.max(room * 3, 12000) }]]);
         let skipRetries = null;
-        const failed = new Map(); // provider -> why it couldn't answer, so the student can see why a backup answered
+        const failed = new Map(skipNow); // provider -> why it couldn't answer, so the student can see why a backup answered
         const dead = new Set(); // providers that refused the key or have no credit left: no point trying their other models
         for (const [rt, extra] of plan) {
           const retry = Object.keys(extra).length > 0, mine = rt.own, model = rt.label;
@@ -287,7 +291,7 @@ export default async function handler(req) {
           if (!up.ok && up.status === 400 && rt.effort) { try { up = await ask({ ...rt, effort: undefined }, extra); } catch { continue; } }
           if (!up.ok && rt.own && [401, 402, 403].includes(up.status)) dead.add(rt.own.id);
           if (!up.ok || !up.body) {
-            if (!retry) { lastError = explain(up.status, await up.text().catch(() => ""), mine); if (mine && !failed.has(mine.id)) failed.set(mine.id, lastError); }
+            if (!retry) { lastError = explain(up.status, await up.text().catch(() => ""), mine); if (mine && !failed.has(mine.id)) failed.set(mine.id, lastError); if (mine && [401, 402, 403].includes(up.status)) noCredit.set(keyOf(mine), { at: Date.now(), msg: lastError }); }
             continue;
           }
           note({ model: model.replace(/[^\w./@: ·-]/g, "") });
