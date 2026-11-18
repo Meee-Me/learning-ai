@@ -187,6 +187,7 @@ function explain(status, detail, mine) {
   try { const j = JSON.parse(detail); reason = j.error?.message || j.errors?.[0]?.message || j.message || (typeof j.error === "string" ? j.error : ""); } catch { reason = String(detail || "").slice(0, 300); }
   if (mine) return (status === 401 || status === 403 ? `${mine.name} refused the key. Check it in Max's settings.`
     : status === 404 ? `${mine.name} doesn't know that address or model. Check them in Max's settings.`
+    : status === 402 || /credit|fund|balance|billing|payment/i.test(reason) ? `${mine.name} has no credit left. Add funds on its website.`
     : status === 429 ? `${mine.name} says it is busy or out of free use for now.`
     : `${mine.name} didn't answer properly.`) + (reason ? ` (it said: ${reason.slice(0, 200)})` : ` (error ${status})`);
   const msg = status === 429 && !/credit|billing|payment|fund/i.test(reason) ? (FREE ? "Max's free AI is busy. Wait a few seconds and try again." : "Max is getting a lot of questions right now. Wait a moment and try again.")
@@ -274,6 +275,7 @@ export default async function handler(req) {
         // When that happens on the default AI, ask the same model again with less thinking and more room.
         const plan = routes.flatMap((rt) => rt.own ? [[rt, {}]] : [[rt, {}], [rt, { reasoning_effort: "low", max_tokens: Math.max(room * 2, 8000) }], [rt, { max_tokens: Math.max(room * 3, 12000) }]]);
         let skipRetries = null;
+        const failed = new Map(); // provider -> why it couldn't answer, so the student can see why a backup answered
         const dead = new Set(); // providers that refused the key or have no credit left: no point trying their other models
         for (const [rt, extra] of plan) {
           const retry = Object.keys(extra).length > 0, mine = rt.own, model = rt.label;
@@ -284,8 +286,12 @@ export default async function handler(req) {
           // A provider that doesn't know the thinking setting says so with a 400. Ask again without it.
           if (!up.ok && up.status === 400 && rt.effort) { try { up = await ask({ ...rt, effort: undefined }, extra); } catch { continue; } }
           if (!up.ok && rt.own && [401, 402, 403].includes(up.status)) dead.add(rt.own.id);
-          if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => ""), mine); continue; }
+          if (!up.ok || !up.body) {
+            if (!retry) { lastError = explain(up.status, await up.text().catch(() => ""), mine); if (mine && !failed.has(mine.id)) failed.set(mine.id, lastError); }
+            continue;
+          }
           note({ model: model.replace(/[^\w./@: ·-]/g, "") });
+          if (failed.size && !(mine && failed.has(mine.id))) note({ fallback: [...failed.values()][0] });
           const reader = up.body.getReader(), dec = new TextDecoder();
           let buf = "", all = "", thought = false, cut = false;
           for (;;) {
