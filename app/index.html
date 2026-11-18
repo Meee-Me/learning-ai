@@ -333,6 +333,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; position: r
             <button type="button" data-mode="opus" aria-pressed="false" title="Stronger. A bigger model that thinks a fair bit.">Opus</button>
             <button type="button" data-mode="ultra" aria-pressed="false" title="Smartest. Thinks hardest, so it is slower.">Ultra</button>
             <button type="button" data-mode="code" aria-pressed="false" title="Writes code, and edits your website when one is connected.">Code</button>
+            <button type="button" data-mode="codex" aria-pressed="false" title="The best. The strongest model for code and your website.">Codex</button>
           </div>
           <div class="starters" id="starters">
             <button type="button" data-mode="sonnet">Explain photosynthesis<span>Simply, with an example</span></button>
@@ -507,8 +508,9 @@ const MODES = {
   opus:   { label: "Opus" },
   ultra:  { label: "Ultra" },
   code:   { label: "Code" },
+  codex:  { label: "Codex" },
 };
-const TIERS = { haiku: "light", sonnet: "standard", opus: "high", ultra: "heavy", code: "heavy" };
+const TIERS = { haiku: "light", sonnet: "standard", opus: "high", ultra: "heavy", code: "heavy", codex: "best" };
 
 const $ = (id) => document.getElementById(id);
 const shell = $("shell"), thread = $("thread"), welcome = $("welcome"), input = $("input"), sendBtn = $("send");
@@ -521,7 +523,7 @@ const store = {
 };
 let chats = store.get("max.chats", []);
 let prefs = store.get("max.prefs", { level: "High school", subject: "", mode: "sonnet", collapsed: false });
-{ const old = { teach: "sonnet", quiz: "sonnet", hint: "sonnet", site: "code" }[prefs.mode]; if (old) prefs.mode = old; if (!(prefs.mode in { haiku: 1, sonnet: 1, opus: 1, ultra: 1, code: 1 })) prefs.mode = "sonnet"; }
+{ const old = { teach: "sonnet", quiz: "sonnet", hint: "sonnet", site: "code" }[prefs.mode]; if (old) prefs.mode = old; if (!(prefs.mode in { haiku: 1, sonnet: 1, opus: 1, ultra: 1, code: 1, codex: 1 })) prefs.mode = "sonnet"; }
 let current = null;      // the open chat object
 let pending = [];        // files waiting to send: {id,name,size,kind,text,thumb,status}
 let busy = false, ctl = null;
@@ -840,7 +842,7 @@ async function respond(opts = {}) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: modelMessages(), mode: siteMode() ? "site" : prefs.mode === "code" ? "code" : "chat", tier: TIERS[prefs.mode], brains: brainList(), voice: !!opts.voice, site: siteMode() ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
+      body: JSON.stringify({ messages: modelMessages(), mode: siteMode() ? "site" : codeMode() ? "code" : "chat", tier: TIERS[prefs.mode], brains: brainList(), voice: !!opts.voice, site: siteMode() ? { repo: site.repo, paths: (site.tree || []).slice(0, 150) } : undefined }),
     });
     if (!res.ok || !res.body) {
       let msg = "Max's cloud brain didn't answer. Try again.";
@@ -925,10 +927,11 @@ async function siteFilesForSend() {
   }
   return out;
 }
-const siteMode = () => prefs.mode === "code" && !!site && !site.paused; // Code edits the connected website unless paused
+const codeMode = () => prefs.mode === "code" || prefs.mode === "codex";
+const siteMode = () => codeMode() && !!site && !site.paused; // Code edits the connected website unless paused
 function renderSite() {
   $("siteBtnText").textContent = site ? site.repo : "Connect a website";
-  $("siteBar").hidden = !(site && prefs.mode === "code");
+  $("siteBar").hidden = !(site && codeMode());
   if (!site) return;
   $("siteLabel").textContent = (site.paused ? "Not editing " : "Editing ") + site.repo + (site.paused ? "" : ":");
   $("siteFiles").hidden = $("siteAdd").hidden = $("siteHost").hidden = !!site.paused; $("siteToggle").textContent = site.paused ? "Edit it again" : "Pause";
@@ -1492,7 +1495,7 @@ function setMode(m) {
   renderSite();
 }
 document.querySelector(".modes").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setMode(b.dataset.mode); });
-$("modeTag").title = "Tap to switch: Haiku, Sonnet, Opus, Ultra, Code";
+$("modeTag").title = "Tap to switch: Haiku, Sonnet, Opus, Ultra, Code, Codex";
 $("modeTag").style.cursor = "pointer";
 $("modeTag").onclick = () => { const k = Object.keys(MODES); setMode(k[(k.indexOf(prefs.mode) + 1) % k.length]); };
 

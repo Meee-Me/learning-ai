@@ -123,8 +123,10 @@ const STRONG = [/gpt-5(?!.*(nano|mini|chat))/i, /claude.*(opus|sonnet)/i, /gemin
 // mid models teach and quiz, and the biggest ones with the most thinking write code and edit websites.
 const LIGHT = [/haiku/i, /llama-3\.1-8b/i, /flash-lite/i, /gpt-.*nano/i, /gpt-.*mini|gpt-4o-mini/i, /gpt-oss-20b/i, /gemini-[\d.]+-flash(?!-lite)/i, /mistral-small/i, /llama-3\.3-70b/i];
 // Between Sonnet and Ultra: strong, but not the very top models.
-const HIGH = [/gpt-oss-120b/i, /gpt-4\.1$/i, /gemini-[\d.]+-flash(?!-lite)/i, /qwen.*(coder|32b|max)/i, /mistral-large|codestral/i, /deepseek.*(v3|chat)/i, /llama-3\.3-70b/i, /gpt-4o$/i, /kimi-k2/i];
-const QUICK = [/gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
+const HIGH = [/claude.*opus/i, /gpt-oss-120b/i, /gpt-4\.1$/i, /gemini-[\d.]+-flash(?!-lite)/i, /qwen.*(coder|32b|max)/i, /mistral-large|codestral/i, /deepseek.*(v3|chat)/i, /llama-3\.3-70b/i, /gpt-4o$/i, /kimi-k2/i];
+// Codex: the very best models for code, ahead of everything else.
+const BEST = [/codex/i, /gpt-5(?!.*(nano|mini|chat))/i, /claude.*opus/i, /gemini-[\d.]+-pro/i, ...STRONG];
+const QUICK = [/claude.*sonnet/i, /gemini-[\d.]+-flash(?!-lite)/i, /gpt-4\.1-mini|gpt-4o-mini|gpt-5-mini/i, /llama-3\.3-70b/i, /gpt-oss-20b/i, /mistral-small/i, /flash-lite/i, ...STRONG];
 const pickCache = new Map();
 
 // Providers the owner switched on for everybody, with a key saved in Vercel's Environment Variables
@@ -157,9 +159,9 @@ function readBrains(body) { // -> { brains } or { error }
 }
 // Which of a provider's models to try: the person's choice, or the strongest ones its model list offers.
 async function brainModels(b, tier) {
-  const hard = tier === "heavy";
+  const hard = tier === "heavy" || tier === "best";
   if (b.model) return b.model.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
-  if (b.fixed) return b[{ heavy: "hard", high: "high", standard: "mid", light: "quick" }[tier]] || b.quick; // this provider's models are known, so no lookup
+  if (b.fixed) return b[{ best: "hard", heavy: "hard", high: "high", standard: "mid", light: "quick" }[tier]] || b.quick; // this provider's models are known, so no lookup
   const cacheKey = `${b.id}:${b.key.slice(-8)}:${tier}`, hit = pickCache.get(cacheKey);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.models;
   let models = b.fallback || [];
@@ -167,7 +169,7 @@ async function brainModels(b, tier) {
     const r = await fetch(b.list || b.url + "/models", { headers: { Authorization: `Bearer ${b.key}` }, signal: AbortSignal.timeout(4000) });
     const j = await r.json();
     const ids = (Array.isArray(j) ? j : j.data || j.models || []).filter((x) => !x.type || /chat|text|language|llm/i.test(String(x.type))).map((x) => String(x.id || x.name || "").replace(/^models\//, "")).filter((id) => id && !NOT_CHAT.test(id) && (!b.only || b.only.test(id)));
-    const want = tier === "heavy" ? STRONG : tier === "high" ? [...HIGH, ...STRONG] : tier === "light" ? [...LIGHT, ...QUICK] : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
+    const want = tier === "best" ? BEST : tier === "heavy" ? STRONG : tier === "high" ? [...HIGH, ...STRONG] : tier === "light" ? [...LIGHT, ...QUICK] : QUICK, rank = (id) => { const i = want.findIndex((re) => re.test(id)); return i < 0 ? 999 : i; };
     const sorted = ids.map((id) => [rank(id), id]).filter(([n]) => n < 999).sort((x, y) => x[0] - y[0] || (x[1] < y[1] ? 1 : -1)).map(([, id]) => id);
     const picked = [...new Set(sorted)].slice(0, b.many || 3);
     if (picked.length) models = picked; else if (ids.length && !models.length) models = ids.slice(0, 2);
@@ -231,11 +233,15 @@ export default async function handler(req) {
   if (!brains.length && !FREE && !OWN && !token) return json(500, { error: "Max's AI isn't set up: set AI_GATEWAY_API_KEY, or remove MAX_BRAIN to use the free AI." });
 
   // How big a brain the student asked for: Haiku (light), Sonnet (standard) or Ultra (heavy). Code is always heavy.
-  const tier = body.voice ? "light" : mode === "code" || mode === "site" ? "heavy" : { light: "light", standard: "standard", high: "high", heavy: "heavy" }[body.tier] || "standard";
-  const hard = mode === "code" || mode === "site" || tier === "heavy";
+  const tier = body.voice ? "light" : mode === "code" || mode === "site" ? (body.tier === "best" ? "best" : "heavy") : { light: "light", standard: "standard", high: "high", heavy: "heavy" }[body.tier] || "standard";
+  const hard = mode === "code" || mode === "site" || tier === "heavy" || tier === "best";
+  // Which provider answers first for each size. AI/ML API runs Haiku, Sonnet, Opus and Codex; Groq runs Ultra
+  // and Code. Anything else you connected (and the free AI) follows as a backup, in that order.
+  const prefer = { light: "aimlapi", standard: "aimlapi", high: "aimlapi", heavy: "groq", best: "aimlapi" }[tier];
+  brains.sort((x, y) => (x.id === "custom" ? 0 : x.id === prefer ? 1 : 2) - (y.id === "custom" ? 0 : y.id === prefer ? 1 : 2));
   const stop = new AbortController();
   req.signal?.addEventListener("abort", () => stop.abort());
-  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "heavy" ? 4000 : tier === "high" ? 2500 : tier === "light" ? 800 : 1500;
+  const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "best" ? 6000 : tier === "heavy" ? 4000 : tier === "high" ? 2500 : tier === "light" ? 800 : 1500;
   // A route is one model at one provider. Connected providers choose their own answer length.
   const ask = (rt, extra = {}) => fetch(rt.url, {
     method: "POST", signal: stop.signal,
@@ -255,7 +261,7 @@ export default async function handler(req) {
         // Routes to try, in order: the providers this person connected, then Max's default AI.
         const routes = [];
         // Models that can think (gpt-oss) are told how hard to: a little for easy things, the most for code and websites.
-        const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", high: "medium", heavy: "high" }[tier] : undefined);
+        const effort = (model) => (/gpt-oss/i.test(model) ? { light: "low", standard: "medium", high: "medium", heavy: "high", best: "high" }[tier] : undefined);
         for (const b of brains) for (const model of await brainModels(b, tier)) routes.push({ url: b.url + "/chat/completions", token: b.key, model, label: `${b.name} · ${model}`, own: b, effort: effort(model) });
         if (!body.test) {
           let tries = [MODEL];
@@ -268,13 +274,16 @@ export default async function handler(req) {
         // When that happens on the default AI, ask the same model again with less thinking and more room.
         const plan = routes.flatMap((rt) => rt.own ? [[rt, {}]] : [[rt, {}], [rt, { reasoning_effort: "low", max_tokens: Math.max(room * 2, 8000) }], [rt, { max_tokens: Math.max(room * 3, 12000) }]]);
         let skipRetries = null;
+        const dead = new Set(); // providers that refused the key or have no credit left: no point trying their other models
         for (const [rt, extra] of plan) {
           const retry = Object.keys(extra).length > 0, mine = rt.own, model = rt.label;
           if (retry && skipRetries !== rt) continue; // retries only follow an empty, thought-out answer
+          if (rt.own && dead.has(rt.own.id)) continue;
           let up;
           try { up = await ask(rt, extra); } catch (e) { if (stop.signal.aborted) return; lastError = mine ? `Max's server couldn't reach ${mine.name}. Check that it is set up right and running.` : "Max's server couldn't reach his AI. Try again."; continue; }
           // A provider that doesn't know the thinking setting says so with a 400. Ask again without it.
           if (!up.ok && up.status === 400 && rt.effort) { try { up = await ask({ ...rt, effort: undefined }, extra); } catch { continue; } }
+          if (!up.ok && rt.own && [401, 402, 403].includes(up.status)) dead.add(rt.own.id);
           if (!up.ok || !up.body) { if (!retry) lastError = explain(up.status, await up.text().catch(() => ""), mine); continue; }
           note({ model: model.replace(/[^\w./@: ·-]/g, "") });
           const reader = up.body.getReader(), dec = new TextDecoder();

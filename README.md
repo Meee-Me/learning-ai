@@ -1,9 +1,16 @@
 # Max — AI tutor
 
 Max is a friendly AI tutor. Pick a level, then pick how hard he thinks with the buttons on the welcome screen or by tapping the
-mode name in the message box: **Haiku** (fastest), **Sonnet** (balanced), **Opus** (stronger), **Ultra** (smartest, slowest)
-and **Code** (writes code, and edits the connected website). Ask for a style in plain words: "teach
+mode name in the message box: **Haiku** (fastest), **Sonnet** (balanced), **Opus** (stronger), **Ultra** (smartest chat, slowest)
+**Code** (writes code, and edits the connected website) and **Codex** (the same, with the best model). Ask for a style in plain words: "teach
 me", "quiz me" or "hints only".
+
+### Which provider runs which mode
+
+By default **AI/ML API** answers Haiku, Sonnet, Opus and Codex, and **Groq** answers Ultra and Code.
+Whatever else is connected, and finally the free AI, follows as a backup if the first choice is busy
+or out of credit. A provider that isn't connected is simply skipped. Keys are saved in Vercel as
+`AIMLAPI_KEY` and `GROQ_API_KEY`. The preferences live in `prefer` in `api/chat.js`.
 
 ## Features
 
