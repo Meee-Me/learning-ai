@@ -245,6 +245,8 @@ export default async function handler(req) {
   const prefer = { light: lower, standard: lower, high: lower, heavy: ["groq"], best: ["aimlapi", "openrouter", "mistral"] }[tier];
   const rankOf = (b) => (b.id === "custom" ? 0 : prefer.includes(b.id) ? 1 + prefer.indexOf(b.id) : 9);
   brains.sort((x, y) => rankOf(x) - rankOf(y));
+  const stop = new AbortController();
+  req.signal?.addEventListener("abort", () => stop.abort());
   const room = body.voice ? 300 : mode === "site" ? 16000 : mode === "code" ? 12000 : tier === "best" ? 6000 : tier === "heavy" ? 4000 : tier === "high" ? 2500 : tier === "light" ? 800 : 1500;
   // A route is one model at one provider. Connected providers choose their own answer length.
   const ask = (rt, extra = {}) => fetch(rt.url, {
