@@ -111,7 +111,7 @@ const PRESETS = {
   anthropic: { name: "Claude", url: "https://api.anthropic.com/v1", fixed: true, needMax: true, hard: ["claude-fable-5-2", "claude-opus-5-5"], high: ["claude-opus-5-5", "claude-sonnet-5-5"], mid: ["claude-sonnet-5-5", "claude-haiku-5-5"], quick: ["claude-haiku-5-5", "claude-sonnet-5-5"] },
   gemini: { name: "Gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai", fallback: ["gemini-2.5-flash"] },
   github: { name: "GitHub Models", url: "https://models.github.ai/inference", list: "https://models.github.ai/catalog/models", fallback: ["openai/gpt-4.1", "openai/gpt-4o-mini"] },
-  openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
+  openrouter: { name: "OpenRouter", url: "https://openrouter.ai/api/v1", only: /:free$/, many: 5, fallback: ["meta-llama/llama-3.3-70b-instruct:free"] },
   groq: { name: "Groq", url: "https://api.groq.com/openai/v1", many: 5, fallback: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"] },
   aimlapi: { name: "AI/ML API", url: "https://api.aimlapi.com/v1", fallback: ["gpt-4o"] },
   mistral: { name: "Mistral", url: "https://api.mistral.ai/v1", fallback: ["mistral-large-latest"] },
